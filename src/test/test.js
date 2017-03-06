@@ -4,6 +4,7 @@ var Terminal = require('../xterm');
 
 describe('xterm.js', function() {
   var xterm;
+  var container = createDiv();
 
   beforeEach(function () {
     xterm = new Terminal();
@@ -853,4 +854,109 @@ describe('xterm.js', function() {
       expect(xterm.lines.get(0)[79][1]).eql('');  // empty cell after fullwidth
     });
   });
+
+  // describe("saveCursorPositionForAlternativeScreen2", function() {
+  //   jsdom();
+  //   it('should save and restore cursor position after switch from alternative screen to normal screen', function () {
+  //     //add div for xterm creation
+  //     xterm.element = createDiv();
+  //
+  //     //render midnight
+  //     xterm.write("]0;@60617cc44283:/terminal[root@60617cc44283 terminal]# ");
+  //     xterm.write("\r[K[root@60617cc44283 terminal]# ");
+  //     xterm.write("\r\n]0;@60617cc44283:/terminal[root@60617cc44283 terminal]# ");
+  //     xterm.write("\r\n]0;@60617cc44283:/terminal[root@60617cc44283 terminal]# mc");
+  //     xterm.write("\r\n[?1049h[1;10r[4l[10;1H");
+  //     xterm.write("\r[K");
+  //     xterm.write("\r[?1049l[?1001s[?1002h[?1006h[?2004h[?1049h[5;15H(B[30m[46m test");
+  //
+  //     xterm.write("[?1006l[?1002l[?1001r[?2004l[1;1H[K");
+  //     xterm.write("\n[K");
+  //     xterm.write("\n[K");
+  //     xterm.write("\n[K");
+  //     xterm.write("\n[K");
+  //     xterm.write("\n[K");
+  //     xterm.write("\n[K");
+  //     xterm.write("\n[K");
+  //     xterm.write("\n[K[1;34H[?1l>[10;1H(B[m[39;49m");
+  //     xterm.write("\r[K");
+  //     xterm.write("\r[?1049l");
+  //     xterm.write("\r\n[root@60617cc44283 terminal#] ");
+  //
+  //     assert.equal(xterm.x, 30);
+  //     assert.equal(xterm.y, 4);
+  //     assert.equal(getTextFromLine(xterm.lines, 0), "[root@60617cc44283 terminal]#                                                  ");
+  //     assert.equal(getTextFromLine(xterm.lines, 1), "[root@60617cc44283 terminal]#                                                  ");
+  //     assert.equal(getTextFromLine(xterm.lines, 2), "[root@60617cc44283 terminal]# mc                                               ");
+  //     assert.equal(getTextFromLine(xterm.lines, 3), "                                                                               ");
+  //     assert.equal(getTextFromLine(xterm.lines, 4), "[root@60617cc44283 terminal#]                                                  ");
+  //   });
+  // });
+
+  describe("saveCursorPositionForAlternativeScreen3", function() {
+    it('should save and restore cursor position after switch from alternative screen to normal screen', function () {
+
+      xterm.open(container);
+
+      //render test
+      xterm.write("]0;root@2e5435072925: /terminalroot@2e5435072925:/terminal# ");
+      xterm.write("\r[K]0;root@2e5435072925: /terminalroot@2e5435072925:/terminal# ");
+      xterm.write("\r\n]0;root@2e5435072925: /terminalroot@2e5435072925:/terminal# ");
+      xterm.write("\r\n]0;root@2e5435072925: /terminalroot@2e5435072925:/terminal# test");
+
+      console.log("normal screen initial: ");
+      xterm.printSavedNormalScreenContent(xterm.normal.lines);
+      console.log("alt screen initial: ");
+      xterm.printSavedNormalScreenContent(xterm.altScreen.lines);
+
+      xterm.write("\r\n[?1049h");
+
+      console.log("normal screen initial: ");
+      xterm.printSavedNormalScreenContent(xterm.normal.lines);
+      console.log("alt screen initial: ");
+      xterm.printSavedNormalScreenContent(xterm.altScreen.lines);
+      console.log("cursor saved state: " + xterm.savedX + " " + xterm.savedY);
+      console.log("cursor alternative screen state " + xterm.altScreen.cursorState.x + " " + xterm.altScreen.cursorState.y);
+
+      // xterm.write("[1;10r[4l[10;1H");
+      // xterm.write("\r[K");
+      // xterm.write("\r[?1049l7[?47h[?1001s[?1002h[?1006h[?2004h[?1049h[5;15H[30m[46m test");
+      // //clean up
+      // xterm.write("[?1006l[?1002l[?1001r[?2004l[1;1H[K");
+      // xterm.write("\n[K");
+      // xterm.write("\n[K");
+      // xterm.write("\n[K");
+      // xterm.write("\n[K");
+      // xterm.write("\n[K");
+      // xterm.write("\n[K");
+      // xterm.write("\n[K");
+      // xterm.write("\n[K");
+      // xterm.write("\n[K[1;34H[?1l>[10;1H(B[m[39;49m");
+      // xterm.write("\r[K");
+      // xterm.write("\r[?1049l[?47l8[m");
+      // xterm.write("\r\nroot@2e5435072925:/terminal# ");
+
+      // assert.equal(xterm.x, 29);
+      // assert.equal(xterm.y, 4);
+      // assert.equal(getTextFromLine(xterm.lines, 0), "root@2e5435072925:/terminal#                                                   ");
+      // assert.equal(getTextFromLine(xterm.lines, 1), "root@2e5435072925:/terminal#                                                   ");
+      // assert.equal(getTextFromLine(xterm.lines, 2), "root@2e5435072925:/terminal# mc                                                ");
+      // assert.equal(getTextFromLine(xterm.lines, 3), "                                                                               ");
+      // assert.equal(getTextFromLine(xterm.lines, 4), "root@2e5435072925:/terminal#                                                   ");
+    });
+  });
+
+  function createDiv() {
+    var div = document.createElement("div");
+    return document.body.appendChild(div);
+  }
+
+  function getTextFromLine(lines, linNumber) {
+    var text = "";
+    for (var i = 0; i < lines.get(linNumber).length - 1; i++) {
+      text += lines[linNumber][i][1];
+    }
+    console.log("text " + text);
+    return text;
+  }
 });

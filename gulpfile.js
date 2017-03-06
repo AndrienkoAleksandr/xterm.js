@@ -80,7 +80,7 @@ gulp.task('instrument-test', function () {
 });
 
 gulp.task('mocha', ['instrument-test'], function () {
-  return gulp.src(['lib/*test.js', 'lib/**/*test.js'], {read: false})
+  return gulp.src(['lib/test/helpers/browser.js', 'lib/*test.js', 'lib/**/*test.js'], {read: false})
       .pipe(mocha())
       .pipe(istanbul.writeReports());
 });

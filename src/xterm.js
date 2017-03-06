@@ -126,6 +126,7 @@ function Terminal(options) {
   this.cols = options.cols || options.geometry[0];
   this.rows = options.rows || options.geometry[1];
   this.geometry = [this.cols, this.rows];
+  this.focusOnOpen = options.focusOnOpen;
 
   if (options.handler) {
     this.on('data', options.handler);
@@ -166,7 +167,10 @@ function Terminal(options) {
   this.originMode = false;
   this.insertMode = false;
   this.wraparoundMode = true; // defaults: xterm - true, vt100 - false
-  this.normal = null;
+  //todo here initialize normal
+  this.normal = null;//rename like follow
+  this.altScreen = null;
+  this.currentScreen = null;
 
   // charset
   this.charset = null;
@@ -356,7 +360,8 @@ Terminal.defaults = {
   cancelEvents: false,
   disableStdin: false,
   useFlowControl: false,
-  tabStopWidth: 8
+  tabStopWidth: 8,
+  focusOnOpen: true
   // programFeatures: false,
   // focusKeys: false,
 };
@@ -596,7 +601,6 @@ Terminal.prototype.open = function(parent) {
   this.element.classList.add('xterm-theme-' + this.theme);
   this.element.classList.toggle('xterm-cursor-blink', this.options.cursorBlink);
 
-  this.element.style.height
   this.element.setAttribute('tabindex', 0);
 
   this.viewportElement = document.createElement('div');
@@ -678,6 +682,39 @@ Terminal.prototype.open = function(parent) {
   // Listen for mouse events and translate
   // them into terminal mouse protocols.
   this.bindMouse();
+
+  this.normal = {
+    lines: this.lines,
+    ybase: this.ybase,
+    ydisp: this.ydisp,
+    cursorState: {
+      x: 0,
+      y: 0
+    },
+    scrollBottom: this.scrollBottom,
+    scrollTop: this.scrollTop,
+    tabs: this.tabs
+  };
+  this.currentScreen = this.normal;
+
+  var altScreenLines = new CircularList(this.rows);//todo think about it scrollBack or rows
+  var count = this.rows;
+  while (count--) {
+    altScreenLines.push(this.blankLine());
+  }
+
+  this.altScreen = {
+    lines: altScreenLines,
+    ybase: this.ybase,
+    ydisp: this.ydisp,
+    cursorState: {
+      x: 0,
+      y: 0
+    },
+    scrollBottom: this.scrollBottom,
+    scrollTop: this.scrollTop,
+    tabs: this.tabs
+  };
 
   /**
    * This event is emitted when terminal has completed opening.
@@ -1884,8 +1921,6 @@ Terminal.prototype.resize = function(x, y) {
 
   this.refresh(0, this.rows - 1);
 
-  this.normal = null;
-
   this.geometry = [this.cols, this.rows];
   this.emit('resize', {terminal: this, cols: x, rows: y});
 };
@@ -2147,15 +2182,36 @@ Terminal.prototype.reverseIndex = function() {
  * ESC c Full Reset (RIS).
  */
 Terminal.prototype.reset = function() {
+  // console.log("RESET!!!!");
   this.options.rows = this.rows;
   this.options.cols = this.cols;
   var customKeydownHandler = this.customKeydownHandler;
+  //todo workAround to save normal and alt state...
+  var normal = this.normal;
+  var altScreen = this.altScreen;
   Terminal.call(this, this.options);
+  this.normal = normal;
+  this.altScreen = altScreen;
   this.customKeydownHandler = customKeydownHandler;
   this.refresh(0, this.rows - 1);
   this.viewport.syncScrollArea();
 };
 
+//todo delete this method. This method usefull for debug.
+Terminal.prototype.printSavedNormalScreenContent = function (lines) {
+  var text = "";
+  for(var i = 0; i < lines.length; i++) {
+    var line = lines.get(i);
+    for (var j = 0; j < line.length; j++) {
+      var character = line[j];
+      var charValue = character[1];
+      text = text + charValue;
+    }
+  }
+  console.log("*******************************************************************");
+  console.log("Terminal content " + text);
+  console.log("*******************************************************************");
+};
 
 /**
  * ESC H Tab Set (HTS is 0x88).

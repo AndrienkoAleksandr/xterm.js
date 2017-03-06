@@ -2,7 +2,7 @@
  * @license MIT
  */
 
-import { IInputHandler, ITerminal } from './Interfaces';
+import {IInputHandler, ITerminal, ScreenState} from './Interfaces';
 import { C0 } from './EscapeSequences';
 import { DEFAULT_CHARSET } from './Charsets';
 
@@ -927,34 +927,68 @@ export class InputHandler implements IInputHandler {
         case 25: // show cursor
           this._terminal.cursorHidden = false;
           break;
+        case 1048:
+          //save cursor!
+          console.log("1048!! Need save cursor.");//todo complete this.
+          break;
         case 1049: // alt screen buffer cursor
-          // this._terminal.saveCursor();
-          ; // FALL-THROUGH
+            this.saveCursor(params);//todo params contains text attribute we should store them too with cursor position
+            this.applyScreenBuffer(this._terminal.altScreen);//todo maybe clear ??????
+            break;
         case 47: // alt screen buffer
+            // FALL-THROUGH
         case 1047: // alt screen buffer
-          if (!this._terminal.normal) {
-            let normal = {
-              lines: this._terminal.lines,
-              ybase: this._terminal.ybase,
-              ydisp: this._terminal.ydisp,
-              x: this._terminal.x,
-              y: this._terminal.y,
-              scrollTop: this._terminal.scrollTop,
-              scrollBottom: this._terminal.scrollBottom,
-              tabs: this._terminal.tabs
-              // XXX save charset(s) here?
-              // charset: this._terminal.charset,
-              // glevel: this._terminal.glevel,
-              // charsets: this._terminal.charsets
-            };
-            this._terminal.reset();
-            this._terminal.viewport.syncScrollArea();
-            this._terminal.normal = normal;
-            this._terminal.showCursor();
-          }
+          this.applyScreenBuffer(this._terminal.altScreen);
           break;
       }
     }
+  }
+
+  private applyScreenBuffer(screenBuffer : ScreenState) {
+    // if (this._terminal.normal === screenBuffer) {
+    //   this._terminal.altScreen = this.saveScreenState();
+    // } else {
+    //   this._terminal.normal = this.saveScreenState();
+    // }
+    var cursorState = {
+      x: this._terminal.currentScreen.cursorState.x,
+      y: this._terminal.currentScreen.cursorState.y
+    };
+
+    this._terminal.currentScreen = screenBuffer;
+    this.restoreScreenState(screenBuffer);
+
+  }
+
+  // private saveScreenState(): ScreenState {
+  //     return {
+  //       lines: this._terminal.lines,
+  //       ybase: this._terminal.ybase,
+  //       ydisp: this._terminal.ydisp,
+  //       cursorState: {
+  //         x: this._terminal.currentScreen.cursorState.x,
+  //         y: this._terminal.currentScreen.cursorState.y
+  //       },//todo is it good idea?
+  //       scrollBottom: this._terminal.scrollBottom,
+  //       scrollTop: this._terminal.scrollTop,
+  //       tabs: this._terminal.tabs
+  //     };
+  // }
+
+  /**
+   * Restore normal screen. Do we need save alternative screen?
+   */
+  private restoreScreenState(screenBuffer: ScreenState) {
+    this._terminal.lines = screenBuffer.lines;
+    this._terminal.ybase = screenBuffer.ybase;
+    this._terminal.ydisp = screenBuffer.ydisp;
+    this._terminal.scrollTop = screenBuffer.scrollTop;
+    this._terminal.scrollBottom = screenBuffer.scrollBottom;
+    this._terminal.tabs = screenBuffer.tabs;
+
+    this._terminal.refresh(0, this._terminal.rows - 1);
+    this._terminal.viewport.syncScrollArea();
+    this._terminal.showCursor();
   }
 
   /**
@@ -1107,28 +1141,19 @@ export class InputHandler implements IInputHandler {
         case 25: // hide cursor
           this._terminal.cursorHidden = true;
           break;
+        case 1048:
+          //restore cursor!
+          console.log("1048!! Need restore !");
+          break;
         case 1049: // alt screen buffer cursor
-          ; // FALL-THROUGH
+          this.restoreScreenState(this._terminal.normal);
+          this.restoreCursor(params);
+          // this._terminal.showCursor();//todo maybe show method move to restoreCursorState?
+          break;
         case 47: // normal screen buffer
+          // FALL-THROUGH
         case 1047: // normal screen buffer - clearing it first
-          if (this._terminal.normal) {
-            this._terminal.lines = this._terminal.normal.lines;
-            this._terminal.ybase = this._terminal.normal.ybase;
-            this._terminal.ydisp = this._terminal.normal.ydisp;
-            this._terminal.x = this._terminal.normal.x;
-            this._terminal.y = this._terminal.normal.y;
-            this._terminal.scrollTop = this._terminal.normal.scrollTop;
-            this._terminal.scrollBottom = this._terminal.normal.scrollBottom;
-            this._terminal.tabs = this._terminal.normal.tabs;
-            this._terminal.normal = null;
-            // if (params === 1049) {
-            //   this.x = this.savedX;
-            //   this.y = this.savedY;
-            // }
-            this._terminal.refresh(0, this._terminal.rows - 1);
-            this._terminal.viewport.syncScrollArea();
-            this._terminal.showCursor();
-          }
+          this.restoreScreenState(this._terminal.normal);
           break;
       }
     }
