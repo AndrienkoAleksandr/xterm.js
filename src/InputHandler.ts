@@ -27,7 +27,7 @@ export class InputHandler implements IInputHandler {
         char = this._terminal.charset[char];
       }
 
-      let row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
+      let row = this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase;
 
       // insert combining char in last cell
       // FIXME: needs handling after cursor jumps
@@ -55,7 +55,7 @@ export class InputHandler implements IInputHandler {
         if (this._terminal.wraparoundMode) {
           this._terminal.currentScreen.cursorState.x = 0;
           this._terminal.currentScreen.cursorState.y++;
-          if (this._terminal.currentScreen.cursorState.y > this._terminal.scrollBottom) {
+          if (this._terminal.currentScreen.cursorState.y > this._terminal.currentScreen.scrollBottom) {
             this._terminal.currentScreen.cursorState.y--;
             this._terminal.scroll();
           }
@@ -64,7 +64,7 @@ export class InputHandler implements IInputHandler {
             return;
         }
       }
-      row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
+      row = this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase;
 
       // insert mode: move characters to right
       if (this._terminal.insertMode) {
@@ -72,7 +72,7 @@ export class InputHandler implements IInputHandler {
         for (let moves = 0; moves < ch_width; ++moves) {
           // remove last cell, if it's width is 0
           // we have to adjust the second last cell as well
-          const removed = this._terminal.lines.get(this._terminal.currentScreen.cursorState.y + this._terminal.ybase).pop();
+          const removed = this._terminal.lines.get(this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase).pop();
           if (removed[2] === 0
               && this._terminal.lines.get(row)[this._terminal.cols - 2]
           && this._terminal.lines.get(row)[this._terminal.cols - 2][2] === 2)
@@ -119,7 +119,7 @@ export class InputHandler implements IInputHandler {
       this._terminal.currentScreen.cursorState.x = 0;
     }
     this._terminal.currentScreen.cursorState.y++;
-    if (this._terminal.currentScreen.cursorState.y > this._terminal.scrollBottom) {
+    if (this._terminal.currentScreen.cursorState.y > this._terminal.currentScreen.scrollBottom) {
       this._terminal.currentScreen.cursorState.y--;
       this._terminal.scroll();
     }
@@ -183,7 +183,7 @@ export class InputHandler implements IInputHandler {
     param = params[0];
     if (param < 1) param = 1;
 
-    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase;
     j = this._terminal.currentScreen.cursorState.x;
     ch = [this._terminal.eraseAttr(), ' ', 1]; // xterm
 
@@ -426,17 +426,17 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase;
 
-    j = this._terminal.rows - 1 - this._terminal.scrollBottom;
+    j = this._terminal.rows - 1 - this._terminal.currentScreen.scrollBottom;
     j = this._terminal.rows - 1 + this._terminal.ybase - j + 1;
 
     while (param--) {
       if (this._terminal.lines.length === this._terminal.lines.maxLength) {
         // Trim the start of lines to make room for the new line
         this._terminal.lines.trimStart(1);
-        this._terminal.ybase--;
-        this._terminal.ydisp--;
+        this._terminal.currentScreen.ybase--;
+        this._terminal.currentScreen.ydisp--;
         row--;
         j--;
       }
@@ -448,7 +448,7 @@ export class InputHandler implements IInputHandler {
 
     // this.maxRange();
     this._terminal.updateRange(this._terminal.currentScreen.cursorState.y);
-    this._terminal.updateRange(this._terminal.scrollBottom);
+    this._terminal.updateRange(this._terminal.currentScreen.scrollBottom);
   }
 
   /**
@@ -462,17 +462,17 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase;
 
-    j = this._terminal.rows - 1 - this._terminal.scrollBottom;
-    j = this._terminal.rows - 1 + this._terminal.ybase - j;
+    j = this._terminal.rows - 1 - this._terminal.currentScreen.scrollBottom;
+    j = this._terminal.rows - 1 + this._terminal.currentScreen.ybase - j;
 
     while (param--) {
       if (this._terminal.lines.length === this._terminal.lines.maxLength) {
         // Trim the start of lines to make room for the new line
         this._terminal.lines.trimStart(1);
-        this._terminal.ybase -= 1;
-        this._terminal.ydisp -= 1;
+        this._terminal.currentScreen.ybase -= 1;
+        this._terminal.currentScreen.ydisp -= 1;
       }
       // test: echo -e '\e[44m\e[1M\e[0m'
       // blankLine(true) - xterm/linux behavior
@@ -482,7 +482,7 @@ export class InputHandler implements IInputHandler {
 
     // this.maxRange();
     this._terminal.updateRange(this._terminal.currentScreen.cursorState.y);
-    this._terminal.updateRange(this._terminal.scrollBottom);
+    this._terminal.updateRange(this._terminal.currentScreen.scrollBottom);
   }
 
   /**
@@ -497,7 +497,7 @@ export class InputHandler implements IInputHandler {
       param = 1;
     }
 
-    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase;
     ch = [this._terminal.eraseAttr(), ' ', 1]; // xterm
 
     while (param--) {
@@ -512,12 +512,12 @@ export class InputHandler implements IInputHandler {
   public scrollUp(params: number[]): void {
     let param = params[0] || 1;
     while (param--) {
-      this._terminal.lines.splice(this._terminal.ybase + this._terminal.scrollTop, 1);
-      this._terminal.lines.splice(this._terminal.ybase + this._terminal.scrollBottom, 0, this._terminal.blankLine());
+      this._terminal.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollTop, 1);
+      this._terminal.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollBottom, 0, this._terminal.blankLine());
     }
     // this.maxRange();
-    this._terminal.updateRange(this._terminal.scrollTop);
-    this._terminal.updateRange(this._terminal.scrollBottom);
+    this._terminal.updateRange(this._terminal.currentScreen.scrollTop);
+    this._terminal.updateRange(this._terminal.currentScreen.scrollBottom);
   }
 
   /**
@@ -526,12 +526,12 @@ export class InputHandler implements IInputHandler {
   public scrollDown(params: number[]): void {
     let param = params[0] || 1;
     while (param--) {
-      this._terminal.lines.splice(this._terminal.ybase + this._terminal.scrollBottom, 1);
-      this._terminal.lines.splice(this._terminal.ybase + this._terminal.scrollTop, 0, this._terminal.blankLine());
+      this._terminal.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollBottom, 1);
+      this._terminal.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollTop, 0, this._terminal.blankLine());
     }
     // this.maxRange();
-    this._terminal.updateRange(this._terminal.scrollTop);
-    this._terminal.updateRange(this._terminal.scrollBottom);
+    this._terminal.updateRange(this._terminal.currentScreen.scrollTop);
+    this._terminal.updateRange(this._terminal.currentScreen.scrollBottom);
   }
 
   /**
@@ -546,7 +546,7 @@ export class InputHandler implements IInputHandler {
       param = 1;
     }
 
-    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase;
     j = this._terminal.currentScreen.cursorState.x;
     ch = [this._terminal.eraseAttr(), ' ', 1]; // xterm
 
@@ -601,7 +601,7 @@ export class InputHandler implements IInputHandler {
    */
   public repeatPrecedingCharacter(params: number[]): void {
     let param = params[0] || 1
-      , line = this._terminal.lines.get(this._terminal.ybase + this._terminal.currentScreen.cursorState.y)
+      , line = this._terminal.lines.get(this._terminal.currentScreen.ybase + this._terminal.currentScreen.cursorState.y)
       , ch = line[this._terminal.currentScreen.cursorState.x - 1] || [this._terminal.defAttr, ' ', 1];
 
     while (param--) {
@@ -995,10 +995,6 @@ export class InputHandler implements IInputHandler {
    */
   private restoreScreenState(screenBuffer: ScreenState) {
     this._terminal.lines = screenBuffer.lines;
-    this._terminal.ybase = screenBuffer.ybase;
-    this._terminal.ydisp = screenBuffer.ydisp;
-    this._terminal.scrollTop = screenBuffer.scrollTop;
-    this._terminal.scrollBottom = screenBuffer.scrollBottom;
     this._terminal.tabs = screenBuffer.tabs;
 
     // this._terminal.refresh(0, this._terminal.rows - 1);
@@ -1438,8 +1434,8 @@ export class InputHandler implements IInputHandler {
     this._terminal.applicationKeypad = false; // ?
     this._terminal.viewport.syncScrollArea();
     this._terminal.applicationCursor = false;
-    this._terminal.scrollTop = 0;
-    this._terminal.scrollBottom = this._terminal.rows - 1;
+    this._terminal.currentScreen.scrollTop = 0;//todo reset both screenState
+    this._terminal.currentScreen.scrollBottom = this._terminal.rows - 1;
     this._terminal.curAttr = this._terminal.defAttr;
     this._terminal.currentScreen.cursorState.x = this._terminal.currentScreen.cursorState.y = 0; // ?
     this._terminal.charset = null;
@@ -1485,8 +1481,8 @@ export class InputHandler implements IInputHandler {
    */
   public setScrollRegion(params: number[]): void {
     if (this._terminal.prefix) return;
-    this._terminal.scrollTop = (params[0] || 1) - 1;
-    this._terminal.scrollBottom = (params[1] && params[1] <= this._terminal.rows ? params[1] : this._terminal.rows) - 1;
+    this._terminal.currentScreen.scrollTop = (params[0] || 1) - 1;
+    this._terminal.currentScreen.scrollBottom = (params[1] && params[1] <= this._terminal.rows ? params[1] : this._terminal.rows) - 1;
     this._terminal.currentScreen.cursorState.x = 0;
     this._terminal.currentScreen.cursorState.y = 0;
   }

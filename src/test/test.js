@@ -61,11 +61,11 @@ describe('xterm.js', function() {
 
   describe('clear', function() {
     it('should clear a buffer equal to rows', function() {
-      var promptLine = xterm.lines.get(xterm.ybase + xterm.currentScreen.cursorState.y);
+      var promptLine = xterm.lines.get(xterm.currentScreen.ybase + xterm.currentScreen.cursorState.y);
       xterm.clear();
       assert.equal(xterm.currentScreen.cursorState.y, 0);
-      assert.equal(xterm.ybase, 0);
-      assert.equal(xterm.ydisp, 0);
+      assert.equal(xterm.currentScreen.ybase, 0);
+      assert.equal(xterm.currentScreen.ydisp, 0);
       assert.equal(xterm.lines.length, xterm.rows);
       assert.deepEqual(xterm.lines.get(0), promptLine);
       for (var i = 1; i < xterm.rows; i++) {
@@ -78,11 +78,11 @@ describe('xterm.js', function() {
         xterm.write('test\n');
       }
 
-      var promptLine = xterm.lines.get(xterm.ybase + xterm.currentScreen.cursorState.y);
+      var promptLine = xterm.lines.get(xterm.currentScreen.ybase + xterm.currentScreen.cursorState.y);
       xterm.clear();
       assert.equal(xterm.currentScreen.cursorState.y, 0);
-      assert.equal(xterm.ybase, 0);
-      assert.equal(xterm.ydisp, 0);
+      assert.equal(xterm.currentScreen.ybase, 0);
+      assert.equal(xterm.currentScreen.ydisp, 0);
       assert.equal(xterm.lines.length, xterm.rows);
       assert.deepEqual(xterm.lines.get(0), promptLine);
       for (var i = 1; i < xterm.rows; i++) {
@@ -90,12 +90,12 @@ describe('xterm.js', function() {
       }
     });
     it('should not break the prompt when cleared twice', function() {
-      var promptLine = xterm.lines.get(xterm.ybase + xterm.currentScreen.cursorState.y);
+      var promptLine = xterm.lines.get(xterm.currentScreen.ybase + xterm.currentScreen.cursorState.y);
       xterm.clear();
       xterm.clear();
       assert.equal(xterm.currentScreen.cursorState.y, 0);
-      assert.equal(xterm.ybase, 0);
-      assert.equal(xterm.ydisp, 0);
+      assert.equal(xterm.currentScreen.ybase, 0);
+      assert.equal(xterm.currentScreen.ydisp, 0);
       assert.equal(xterm.lines.length, xterm.rows);
       assert.deepEqual(xterm.lines.get(0), promptLine);
       for (var i = 1; i < xterm.rows; i++) {
@@ -114,29 +114,29 @@ describe('xterm.js', function() {
         startYDisp = xterm.rows + 1;
       });
       it('should scroll a single line', function() {
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
         xterm.scrollDisp(-1);
-        assert.equal(xterm.ydisp, startYDisp - 1);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp - 1);
         xterm.scrollDisp(1);
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
       });
       it('should scroll multiple lines', function() {
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
         xterm.scrollDisp(-5);
-        assert.equal(xterm.ydisp, startYDisp - 5);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp - 5);
         xterm.scrollDisp(5);
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
       });
       it('should not scroll beyond the bounds of the buffer', function() {
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
         xterm.scrollDisp(1);
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
         for (var i = 0; i < startYDisp; i++) {
           xterm.scrollDisp(-1);
         }
-        assert.equal(xterm.ydisp, 0);
+        assert.equal(xterm.currentScreen.ydisp, 0);
         xterm.scrollDisp(-1);
-        assert.equal(xterm.ydisp, 0);
+        assert.equal(xterm.currentScreen.ydisp, 0);
       });
     });
 
@@ -149,18 +149,18 @@ describe('xterm.js', function() {
         startYDisp = (xterm.rows * 2) + 1;
       });
       it('should scroll a single page', function() {
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
         xterm.scrollPages(-1);
-        assert.equal(xterm.ydisp, startYDisp - (xterm.rows - 1));
+        assert.equal(xterm.currentScreen.ydisp, startYDisp - (xterm.rows - 1));
         xterm.scrollPages(1);
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
       });
       it('should scroll a multiple pages', function() {
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
         xterm.scrollPages(-2);
-        assert.equal(xterm.ydisp, startYDisp - (xterm.rows - 1) * 2);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp - (xterm.rows - 1) * 2);
         xterm.scrollPages(2);
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
       });
     });
 
@@ -171,9 +171,9 @@ describe('xterm.js', function() {
         }
       });
       it('should scroll to the top', function() {
-        assert.notEqual(xterm.ydisp, 0);
+        assert.notEqual(xterm.currentScreen.ydisp, 0);
         xterm.scrollToTop();
-        assert.equal(xterm.ydisp, 0);
+        assert.equal(xterm.currentScreen.ydisp, 0);
       });
     });
 
@@ -188,13 +188,13 @@ describe('xterm.js', function() {
       it('should scroll to the bottom', function() {
         xterm.scrollDisp(-1);
         xterm.scrollToBottom();
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
         xterm.scrollPages(-1);
         xterm.scrollToBottom();
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
         xterm.scrollToTop();
         xterm.scrollToBottom();
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
       });
     });
 
@@ -211,13 +211,13 @@ describe('xterm.js', function() {
           stopPropagation: function(){}
         };
 
-        xterm.ydisp = 0;
-        xterm.ybase = 40;
-        assert.notEqual(xterm.ydisp, xterm.ybase);
+        xterm.currentScreen.ydisp = 0;
+        xterm.currentScreen.ybase = 40;
+        assert.notEqual(xterm.currentScreen.ydisp, xterm.currentScreen.ybase);
         xterm.keyDown(event);
 
         // Ensure that now the terminal is scrolled to bottom
-        assert.equal(xterm.ydisp, xterm.ybase);
+        assert.equal(xterm.currentScreen.ydisp, xterm.currentScreen.ybase);
       });
 
       it('should not scroll down, when a custom keydown handler prevents the event', function () {
@@ -230,11 +230,11 @@ describe('xterm.js', function() {
           return false;
         });
 
-        assert.equal(xterm.ydisp, startYDisp);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp);
         xterm.scrollDisp(-1);
-        assert.equal(xterm.ydisp, startYDisp - 1);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp - 1);
         xterm.keyDown({ keyCode: 0 });
-        assert.equal(xterm.ydisp, startYDisp - 1);
+        assert.equal(xterm.currentScreen.ydisp, startYDisp - 1);
       });
     });
   });

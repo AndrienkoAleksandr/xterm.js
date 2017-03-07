@@ -12,9 +12,11 @@ describe('Viewport', () => {
 
   beforeEach(() => {
     terminal = {
+      currentScreen : {
+        ydisp: 0
+      },
       lines: [],
       rows: 0,
-      ydisp: 0,
       on: () => {},
       rowContainer: {
         style: {

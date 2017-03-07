@@ -136,7 +136,7 @@ export class Renderer {
     }
 
     for (; y <= end; y++) {
-      row = y + this._terminal.ydisp;
+      row = y + this._terminal.currentScreen.ydisp;
 
       line = this._terminal.lines.get(row);
       if (!line || !this._terminal.children[y]) {
@@ -145,7 +145,8 @@ export class Renderer {
       }
       out = '';
 
-      if (this._terminal.currentScreen.cursorState.y === y - (this._terminal.ybase - this._terminal.ydisp)
+      //todo maybe throw away terminal from here and use current screen state?
+      if (this._terminal.currentScreen.cursorState.y === y - (this._terminal.currentScreen.ybase - this._terminal.currentScreen.ydisp)
           && this._terminal.cursorState
           && !this._terminal.cursorHidden) {
         x = this._terminal.currentScreen.cursorState.x;

@@ -132,23 +132,12 @@ function Terminal(options) {
     this.on('data', options.handler);
   }
 
-  /**
-   * The scroll position of the y cursor, ie. ybase + y = the y position within the entire
-   * buffer
-   */
-  this.ybase = 0;
-
-  /**
-   * The scroll position of the viewport
-   */
-  this.ydisp = 0;
+//todo add comment for ybase, ydisp, scrollTop, scrollBottom
 
   this.cursorState = 0;
   this.cursorHidden = false;
   this.convertEol;
   this.queue = '';
-  this.scrollTop = 0;
-  this.scrollBottom = this.rows - 1;
   this.customKeydownHandler = null;
 
   // modes
@@ -246,7 +235,7 @@ function Terminal(options) {
       x: 0,
       y: 0
     },
-    scrollBottom: this.scrollBottom,
+    scrollBottom: this.rows - 1,
     scrollTop: 0,
     tabs: []
   };
@@ -266,7 +255,7 @@ function Terminal(options) {
       x: 0,
       y: 0
     },
-    scrollBottom: this.scrollBottom,
+    scrollBottom: this.rows - 1,
     scrollTop: 0,
     tabs: []
   };
@@ -432,10 +421,10 @@ Terminal.prototype.setOption = function(key, value) {
       if (this.options[key] !== value) {
         if (this.lines.length > value) {
           const amountToTrim = this.lines.length - value;
-          const needsRefresh = (this.ydisp - amountToTrim < 0);
+          const needsRefresh = (this.currentScreen.ydisp - amountToTrim < 0);
           this.lines.trimStart(amountToTrim);
-          this.ybase = Math.max(this.ybase - amountToTrim, 0);
-          this.ydisp = Math.max(this.ydisp - amountToTrim, 0);
+          this.currentScreen.ybase = Math.max(this.currentScreen.ybase - amountToTrim, 0);
+          this.currentScreen.ydisp = Math.max(this.currentScreen.ydisp - amountToTrim, 0);
           if (needsRefresh) {
             this.refresh(0, this.rows - 1);
           }
@@ -1125,24 +1114,24 @@ Terminal.prototype.scroll = function() {
   // Make room for the new row in lines
   if (this.lines.length === this.lines.maxLength) {
     this.lines.trimStart(1);
-    this.ybase--;
-    if (this.ydisp !== 0) {
-      this.ydisp--;
+    this.currentScreen.ybase--;
+    if (this.currentScreen.ydisp !== 0) {
+      this.currentScreen.ydisp--;
     }
   }
 
-  this.ybase++;
+  this.currentScreen.ybase++;
 
   // TODO: Why is this done twice?
   if (!this.userScrolling) {
-    this.ydisp = this.ybase;
+    this.currentScreen.ydisp = this.currentScreen.ybase;
   }
 
   // last line
-  row = this.ybase + this.rows - 1;
+  row = this.currentScreen.ybase + this.rows - 1;
 
   // subtract the bottom scroll region
-  row -= this.rows - 1 - this.scrollBottom;
+  row -= this.rows - 1 - this.currentScreen.scrollBottom;
 
   if (row === this.lines.length) {
     // Optimization: pushing is faster than splicing when they amount to the same behavior
@@ -1152,19 +1141,19 @@ Terminal.prototype.scroll = function() {
     this.lines.splice(row, 0, this.blankLine());
   }
 
-  if (this.scrollTop !== 0) {
-    if (this.ybase !== 0) {
-      this.ybase--;
+  if (this.currentScreen.scrollTop !== 0) {//do we need separate object scrollState?
+    if (this.currentScreen.ybase !== 0) {
+      this.currentScreen.ybase--;
       if (!this.userScrolling) {
-        this.ydisp = this.ybase;
+        this.currentScreen.ydisp = this.currentScreen.ybase;
       }
     }
-    this.lines.splice(this.ybase + this.scrollTop, 1);
+    this.lines.splice(this.currentScreen.ybase + this.currentScreen.scrollTop, 1);
   }
 
   // this.maxRange();
-  this.updateRange(this.scrollTop);
-  this.updateRange(this.scrollBottom);
+  this.updateRange(this.currentScreen.scrollTop);
+  this.updateRange(this.currentScreen.scrollBottom);
 
   /**
    * This event is emitted whenever the terminal is scrolled.
@@ -1172,7 +1161,7 @@ Terminal.prototype.scroll = function() {
    *
    * @event scroll
    */
-  this.emit('scroll', this.ydisp);
+  this.emit('scroll', this.currentScreen.ydisp);
 };
 
 /**
@@ -1185,20 +1174,20 @@ Terminal.prototype.scroll = function() {
 Terminal.prototype.scrollDisp = function(disp, suppressScrollEvent) {
   if (disp < 0) {
     this.userScrolling = true;
-  } else if (disp + this.ydisp >= this.ybase) {
+  } else if (disp + this.currentScreen.ydisp >= this.currentScreen.ybase) {
     this.userScrolling = false;
   }
 
-  this.ydisp += disp;
+  this.currentScreen.ydisp += disp;
 
-  if (this.ydisp > this.ybase) {
-    this.ydisp = this.ybase;
-  } else if (this.ydisp < 0) {
-    this.ydisp = 0;
+  if (this.currentScreen.ydisp > this.currentScreen.ybase) {
+    this.currentScreen.ydisp = this.currentScreen.ybase;
+  } else if (this.currentScreen.ydisp < 0) {
+    this.currentScreen.ydisp = 0;
   }
 
   if (!suppressScrollEvent) {
-    this.emit('scroll', this.ydisp);
+    this.emit('scroll', this.currentScreen.ydisp);
   }
 
   this.refresh(0, this.rows - 1);
@@ -1216,14 +1205,14 @@ Terminal.prototype.scrollPages = function(pageCount) {
  * Scrolls the display of the terminal to the top.
  */
 Terminal.prototype.scrollToTop = function() {
-  this.scrollDisp(-this.ydisp);
+  this.scrollDisp(-this.currentScreen.ydisp);
 }
 
 /**
  * Scrolls the display of the terminal to the bottom.
  */
 Terminal.prototype.scrollToBottom = function() {
-  this.scrollDisp(this.ybase - this.ydisp);
+  this.scrollDisp(this.currentScreen.ybase - this.currentScreen.ydisp);
 }
 
 /**
@@ -1364,7 +1353,7 @@ Terminal.prototype.keyDown = function(ev) {
   }
 
   if (!this.compositionHelper.keydown.bind(this.compositionHelper)(ev)) {
-    if (this.ybase !== this.ydisp) {
+    if (this.currentScreen.ybase !== this.currentScreen.ydisp) {
       this.scrollToBottom();
     }
     return false;
@@ -1850,15 +1839,15 @@ Terminal.prototype.resize = function(x, y) {
     el = this.element;
     while (j++ < y) {
       // y is rows, not this.currentScreen.cursorState.y
-      if (this.lines.length < y + this.ybase) {
-        if (this.ybase > 0 && this.lines.length <= this.ybase + this.currentScreen.cursorState.y + addToY + 1) {
+      if (this.lines.length < y + this.currentScreen.ybase) {
+        if (this.currentScreen.ybase > 0 && this.lines.length <= this.currentScreen.ybase + this.currentScreen.cursorState.y + addToY + 1) {
           // There is room above the buffer and there are no empty elements below the line,
           // scroll up
-          this.ybase--;
+          this.currentScreen.ybase--;
           addToY++
-          if (this.ydisp > 0) {
+          if (this.currentScreen.ydisp > 0) {
             // Viewport is at the top of the buffer, must increase downwards
-            this.ydisp--;
+            this.currentScreen.ydisp--;
           }
         } else {
           // Add a blank line if there is no buffer left at the top to scroll to, or if there
@@ -1872,14 +1861,14 @@ Terminal.prototype.resize = function(x, y) {
     }
   } else { // (j > y)
     while (j-- > y) {
-      if (this.lines.length > y + this.ybase) {
-        if (this.lines.length > this.ybase + this.currentScreen.cursorState.y + 1) {
+      if (this.lines.length > y + this.currentScreen.ybase) {
+        if (this.lines.length > this.currentScreen.ybase + this.currentScreen.cursorState.y + 1) {
           // The line is a blank line below the cursor, remove it
           this.lines.pop();
         } else {
           // The line is the cursor, scroll down
-          this.ybase++;
-          this.ydisp++;
+          this.currentScreen.ybase++;
+          this.currentScreen.ydisp++;
         }
       }
       if (this.children.length > y) {
@@ -1903,8 +1892,8 @@ Terminal.prototype.resize = function(x, y) {
     this.currentScreen.cursorState.x = x - 1;
   }
 
-  this.scrollTop = 0;
-  this.scrollBottom = y - 1;
+  this.currentScreen.scrollTop = 0;
+  this.currentScreen.scrollBottom = y - 1;
 
   this.charMeasure.measure();
 
@@ -1991,7 +1980,7 @@ Terminal.prototype.nextStop = function(x) {
  * @param {number} y The line in which to operate.
  */
 Terminal.prototype.eraseRight = function(x, y) {
-  var line = this.lines.get(this.ybase + y);
+  var line = this.lines.get(this.currentScreen.ybase + y);
   if (!line) {
     return;
   }
@@ -2010,7 +1999,7 @@ Terminal.prototype.eraseRight = function(x, y) {
  * @param {number} y The line in which to operate.
  */
 Terminal.prototype.eraseLeft = function(x, y) {
-  var line = this.lines.get(this.ybase + y);
+  var line = this.lines.get(this.currentScreen.ybase + y);
   if (!line) {
     return;
   }
@@ -2026,20 +2015,20 @@ Terminal.prototype.eraseLeft = function(x, y) {
  * Clears the entire buffer, making the prompt line the new first line.
  */
 Terminal.prototype.clear = function() {
-  if (this.ybase === 0 && this.currentScreen.cursorState.y === 0) {
+  if (this.currentScreen.ybase === 0 && this.currentScreen.cursorState.y === 0) {
     // Don't clear if it's already clear
     return;
   }
-  this.lines.set(0, this.lines.get(this.ybase + this.currentScreen.cursorState.y));
+  this.lines.set(0, this.lines.get(this.currentScreen.ybase + this.currentScreen.cursorState.y));
   this.lines.length = 1;
-  this.ydisp = 0;
-  this.ybase = 0;
+  this.currentScreen.ydisp = 0;
+  this.currentScreen.ybase = 0;
   this.currentScreen.cursorState.y = 0;
   for (var i = 1; i < this.rows; i++) {
     this.lines.push(this.blankLine());
   }
   this.refresh(0, this.rows - 1);
-  this.emit('scroll', this.ydisp);
+  this.emit('scroll', this.currentScreen.ydisp);
 };
 
 /**
@@ -2104,7 +2093,7 @@ Terminal.prototype.handler = function(data) {
   }
 
   // Input is being sent to the terminal, the terminal should focus the prompt.
-  if (this.ybase !== this.ydisp) {
+  if (this.currentScreen.ybase !== this.currentScreen.ydisp) {
     this.scrollToBottom();
   }
   this.emit('data', data);
@@ -2135,7 +2124,7 @@ Terminal.prototype.handleTitle = function(title) {
  */
 Terminal.prototype.index = function() {
   this.currentScreen.cursorState.y++;
-  if (this.currentScreen.cursorState.y > this.scrollBottom) {
+  if (this.currentScreen.cursorState.y > this.currentScreen.scrollBottom) {
     this.currentScreen.cursorState.y--;
     this.scroll();
   }
@@ -2152,15 +2141,15 @@ Terminal.prototype.index = function() {
  * Move the cursor up one row, inserting a new blank line if necessary.
  */
 Terminal.prototype.reverseIndex = function() {
-  var j;
-  if (this.currentScreen.cursorState.y === this.scrollTop) {
+  var j;//todo var screen = this.currentScreen;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  if (this.currentScreen.cursorState.y === this.currentScreen.scrollTop) {
     // possibly move the code below to term.reverseScroll();
     // test: echo -ne '\e[1;1H\e[44m\eM\e[0m'
     // blankLine(true) is xterm/linux behavior
-    this.lines.shiftElements(this.currentScreen.cursorState.y + this.ybase, this.rows - 1, 1);
-    this.lines.set(this.currentScreen.cursorState.y + this.ybase, this.blankLine(true));
-    this.updateRange(this.scrollTop);
-    this.updateRange(this.scrollBottom);
+    this.lines.shiftElements(this.currentScreen.cursorState.y + this.currentScreen.ybase, this.rows - 1, 1);
+    this.lines.set(this.currentScreen.cursorState.y + this.currentScreen.ybase, this.blankLine(true));
+    this.updateRange(this.currentScreen.scrollTop);
+    this.updateRange(this.currentScreen.scrollBottom);
   } else {
     this.currentScreen.cursorState.y--;
   }
