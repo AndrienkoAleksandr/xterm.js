@@ -31,8 +31,7 @@ export interface ITerminal {
   children: HTMLElement[];
   cursorHidden: boolean;
   cursorState: number;
-  x: number;
-  y: number;
+  currentScreen: ScreenState;
   defAttr: number;
 
   /**

@@ -27,36 +27,36 @@ export class InputHandler implements IInputHandler {
         char = this._terminal.charset[char];
       }
 
-      let row = this._terminal.y + this._terminal.ybase;
+      let row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
 
       // insert combining char in last cell
       // FIXME: needs handling after cursor jumps
-      if (!ch_width && this._terminal.x) {
+      if (!ch_width && this._terminal.currentScreen.cursorState.x) {
         // dont overflow left
-        if (this._terminal.lines.get(row)[this._terminal.x - 1]) {
-          if (!this._terminal.lines.get(row)[this._terminal.x - 1][2]) {
+        if (this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 1]) {
+          if (!this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 1][2]) {
 
             // found empty cell after fullwidth, need to go 2 cells back
-            if (this._terminal.lines.get(row)[this._terminal.x - 2])
-              this._terminal.lines.get(row)[this._terminal.x - 2][1] += char;
+            if (this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 2])
+              this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 2][1] += char;
 
           } else {
-            this._terminal.lines.get(row)[this._terminal.x - 1][1] += char;
+            this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 1][1] += char;
           }
-          this._terminal.updateRange(this._terminal.y);
+          this._terminal.updateRange(this._terminal.currentScreen.cursorState.y);
         }
         return;
       }
 
       // goto next line if ch would overflow
       // TODO: needs a global min terminal width of 2
-      if (this._terminal.x + ch_width - 1 >= this._terminal.cols) {
+      if (this._terminal.currentScreen.cursorState.x + ch_width - 1 >= this._terminal.cols) {
         // autowrap - DECAWM
         if (this._terminal.wraparoundMode) {
-          this._terminal.x = 0;
-          this._terminal.y++;
-          if (this._terminal.y > this._terminal.scrollBottom) {
-            this._terminal.y--;
+          this._terminal.currentScreen.cursorState.x = 0;
+          this._terminal.currentScreen.cursorState.y++;
+          if (this._terminal.currentScreen.cursorState.y > this._terminal.scrollBottom) {
+            this._terminal.currentScreen.cursorState.y--;
             this._terminal.scroll();
           }
         } else {
@@ -64,7 +64,7 @@ export class InputHandler implements IInputHandler {
             return;
         }
       }
-      row = this._terminal.y + this._terminal.ybase;
+      row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
 
       // insert mode: move characters to right
       if (this._terminal.insertMode) {
@@ -72,25 +72,25 @@ export class InputHandler implements IInputHandler {
         for (let moves = 0; moves < ch_width; ++moves) {
           // remove last cell, if it's width is 0
           // we have to adjust the second last cell as well
-          const removed = this._terminal.lines.get(this._terminal.y + this._terminal.ybase).pop();
+          const removed = this._terminal.lines.get(this._terminal.currentScreen.cursorState.y + this._terminal.ybase).pop();
           if (removed[2] === 0
               && this._terminal.lines.get(row)[this._terminal.cols - 2]
           && this._terminal.lines.get(row)[this._terminal.cols - 2][2] === 2)
             this._terminal.lines.get(row)[this._terminal.cols - 2] = [this._terminal.curAttr, ' ', 1];
 
           // insert empty cell at cursor
-          this._terminal.lines.get(row).splice(this._terminal.x, 0, [this._terminal.curAttr, ' ', 1]);
+          this._terminal.lines.get(row).splice(this._terminal.currentScreen.cursorState.x, 0, [this._terminal.curAttr, ' ', 1]);
         }
       }
 
-      this._terminal.lines.get(row)[this._terminal.x] = [this._terminal.curAttr, char, ch_width];
-      this._terminal.x++;
-      this._terminal.updateRange(this._terminal.y);
+      this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x] = [this._terminal.curAttr, char, ch_width];
+      this._terminal.currentScreen.cursorState.x++;
+      this._terminal.updateRange(this._terminal.currentScreen.cursorState.y);
 
       // fullwidth char - set next cell width to zero and advance cursor
       if (ch_width === 2) {
-        this._terminal.lines.get(row)[this._terminal.x] = [this._terminal.curAttr, '', 0];
-        this._terminal.x++;
+        this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x] = [this._terminal.curAttr, '', 0];
+        this._terminal.currentScreen.cursorState.x++;
       }
     }
   }
@@ -116,16 +116,16 @@ export class InputHandler implements IInputHandler {
    */
   public lineFeed(): void {
     if (this._terminal.convertEol) {
-      this._terminal.x = 0;
+      this._terminal.currentScreen.cursorState.x = 0;
     }
-    this._terminal.y++;
-    if (this._terminal.y > this._terminal.scrollBottom) {
-      this._terminal.y--;
+    this._terminal.currentScreen.cursorState.y++;
+    if (this._terminal.currentScreen.cursorState.y > this._terminal.scrollBottom) {
+      this._terminal.currentScreen.cursorState.y--;
       this._terminal.scroll();
     }
     // If the end of the line is hit, prevent this action from wrapping around to the next line.
-    if (this._terminal.x >= this._terminal.cols) {
-      this._terminal.x--;
+    if (this._terminal.currentScreen.cursorState.x >= this._terminal.cols) {
+      this._terminal.currentScreen.cursorState.x--;
     }
   }
 
@@ -134,7 +134,7 @@ export class InputHandler implements IInputHandler {
    * Carriage Return (Ctrl-M).
    */
   public carriageReturn(): void {
-    this._terminal.x = 0;
+    this._terminal.currentScreen.cursorState.x = 0;
   }
 
   /**
@@ -142,8 +142,8 @@ export class InputHandler implements IInputHandler {
    * Backspace (Ctrl-H).
    */
   public backspace(): void {
-    if (this._terminal.x > 0) {
-      this._terminal.x--;
+    if (this._terminal.currentScreen.cursorState.x > 0) {
+      this._terminal.currentScreen.cursorState.x--;
     }
   }
 
@@ -152,7 +152,7 @@ export class InputHandler implements IInputHandler {
    * Horizontal Tab (HT) (Ctrl-I).
    */
   public tab(): void {
-    this._terminal.x = this._terminal.nextStop();
+    this._terminal.currentScreen.cursorState.x = this._terminal.nextStop();
   }
 
   /**
@@ -183,8 +183,8 @@ export class InputHandler implements IInputHandler {
     param = params[0];
     if (param < 1) param = 1;
 
-    row = this._terminal.y + this._terminal.ybase;
-    j = this._terminal.x;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
+    j = this._terminal.currentScreen.cursorState.x;
     ch = [this._terminal.eraseAttr(), ' ', 1]; // xterm
 
     while (param-- && j < this._terminal.cols) {
@@ -202,9 +202,9 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.y -= param;
-    if (this._terminal.y < 0) {
-      this._terminal.y = 0;
+    this._terminal.currentScreen.cursorState.y -= param;
+    if (this._terminal.currentScreen.cursorState.y < 0) {
+      this._terminal.currentScreen.cursorState.y = 0;
     }
   }
 
@@ -217,13 +217,13 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.y += param;
-    if (this._terminal.y >= this._terminal.rows) {
-      this._terminal.y = this._terminal.rows - 1;
+    this._terminal.currentScreen.cursorState.y += param;
+    if (this._terminal.currentScreen.cursorState.y >= this._terminal.rows) {
+      this._terminal.currentScreen.cursorState.y = this._terminal.rows - 1;
     }
     // If the end of the line is hit, prevent this action from wrapping around to the next line.
-    if (this._terminal.x >= this._terminal.cols) {
-      this._terminal.x--;
+    if (this._terminal.currentScreen.cursorState.x >= this._terminal.cols) {
+      this._terminal.currentScreen.cursorState.x--;
     }
   }
 
@@ -236,9 +236,9 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.x += param;
-    if (this._terminal.x >= this._terminal.cols) {
-      this._terminal.x = this._terminal.cols - 1;
+    this._terminal.currentScreen.cursorState.x += param;
+    if (this._terminal.currentScreen.cursorState.x >= this._terminal.cols) {
+      this._terminal.currentScreen.cursorState.x = this._terminal.cols - 1;
     }
   }
 
@@ -252,12 +252,12 @@ export class InputHandler implements IInputHandler {
       param = 1;
     }
     // If the end of the line is hit, prevent this action from wrapping around to the next line.
-    if (this._terminal.x >= this._terminal.cols) {
-      this._terminal.x--;
+    if (this._terminal.currentScreen.cursorState.x >= this._terminal.cols) {
+      this._terminal.currentScreen.cursorState.x--;
     }
-    this._terminal.x -= param;
-    if (this._terminal.x < 0) {
-      this._terminal.x = 0;
+    this._terminal.currentScreen.cursorState.x -= param;
+    if (this._terminal.currentScreen.cursorState.x < 0) {
+      this._terminal.currentScreen.cursorState.x = 0;
     }
   }
 
@@ -271,11 +271,11 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.y += param;
-    if (this._terminal.y >= this._terminal.rows) {
-      this._terminal.y = this._terminal.rows - 1;
+    this._terminal.currentScreen.cursorState.y += param;
+    if (this._terminal.currentScreen.cursorState.y >= this._terminal.rows) {
+      this._terminal.currentScreen.cursorState.y = this._terminal.rows - 1;
     }
-    this._terminal.x = 0;
+    this._terminal.currentScreen.cursorState.x = 0;
   };
 
 
@@ -289,11 +289,11 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.y -= param;
-    if (this._terminal.y < 0) {
-      this._terminal.y = 0;
+    this._terminal.currentScreen.cursorState.y -= param;
+    if (this._terminal.currentScreen.cursorState.y < 0) {
+      this._terminal.currentScreen.cursorState.y = 0;
     }
-    this._terminal.x = 0;
+    this._terminal.currentScreen.cursorState.x = 0;
   };
 
 
@@ -306,7 +306,7 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.x = param - 1;
+    this._terminal.currentScreen.cursorState.x = param - 1;
   }
 
   /**
@@ -336,8 +336,8 @@ export class InputHandler implements IInputHandler {
       col = this._terminal.cols - 1;
     }
 
-    this._terminal.x = col;
-    this._terminal.y = row;
+    this._terminal.currentScreen.cursorState.x = col;
+    this._terminal.currentScreen.cursorState.y = row;
   }
 
   /**
@@ -347,7 +347,7 @@ export class InputHandler implements IInputHandler {
   public cursorForwardTab(params: number[]): void {
     let param = params[0] || 1;
     while (param--) {
-      this._terminal.x = this._terminal.nextStop();
+      this._terminal.currentScreen.cursorState.x = this._terminal.nextStop();
     }
   }
 
@@ -367,15 +367,15 @@ export class InputHandler implements IInputHandler {
     let j;
     switch (params[0]) {
       case 0:
-        this._terminal.eraseRight(this._terminal.x, this._terminal.y);
-        j = this._terminal.y + 1;
+        this._terminal.eraseRight(this._terminal.currentScreen.cursorState.x, this._terminal.currentScreen.cursorState.y);
+        j = this._terminal.currentScreen.cursorState.y + 1;
         for (; j < this._terminal.rows; j++) {
           this._terminal.eraseLine(j);
         }
         break;
       case 1:
-        this._terminal.eraseLeft(this._terminal.x, this._terminal.y);
-        j = this._terminal.y;
+        this._terminal.eraseLeft(this._terminal.currentScreen.cursorState.x, this._terminal.currentScreen.cursorState.y);
+        j = this._terminal.currentScreen.cursorState.y;
         while (j--) {
           this._terminal.eraseLine(j);
         }
@@ -404,13 +404,13 @@ export class InputHandler implements IInputHandler {
   public eraseInLine(params: number[]): void {
     switch (params[0]) {
       case 0:
-        this._terminal.eraseRight(this._terminal.x, this._terminal.y);
+        this._terminal.eraseRight(this._terminal.currentScreen.cursorState.x, this._terminal.currentScreen.cursorState.y);
         break;
       case 1:
-        this._terminal.eraseLeft(this._terminal.x, this._terminal.y);
+        this._terminal.eraseLeft(this._terminal.currentScreen.cursorState.x, this._terminal.currentScreen.cursorState.y);
         break;
       case 2:
-        this._terminal.eraseLine(this._terminal.y);
+        this._terminal.eraseLine(this._terminal.currentScreen.cursorState.y);
         break;
     }
   }
@@ -426,7 +426,7 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    row = this._terminal.y + this._terminal.ybase;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
 
     j = this._terminal.rows - 1 - this._terminal.scrollBottom;
     j = this._terminal.rows - 1 + this._terminal.ybase - j + 1;
@@ -447,7 +447,7 @@ export class InputHandler implements IInputHandler {
     }
 
     // this.maxRange();
-    this._terminal.updateRange(this._terminal.y);
+    this._terminal.updateRange(this._terminal.currentScreen.cursorState.y);
     this._terminal.updateRange(this._terminal.scrollBottom);
   }
 
@@ -462,7 +462,7 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    row = this._terminal.y + this._terminal.ybase;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
 
     j = this._terminal.rows - 1 - this._terminal.scrollBottom;
     j = this._terminal.rows - 1 + this._terminal.ybase - j;
@@ -481,7 +481,7 @@ export class InputHandler implements IInputHandler {
     }
 
     // this.maxRange();
-    this._terminal.updateRange(this._terminal.y);
+    this._terminal.updateRange(this._terminal.currentScreen.cursorState.y);
     this._terminal.updateRange(this._terminal.scrollBottom);
   }
 
@@ -497,11 +497,11 @@ export class InputHandler implements IInputHandler {
       param = 1;
     }
 
-    row = this._terminal.y + this._terminal.ybase;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
     ch = [this._terminal.eraseAttr(), ' ', 1]; // xterm
 
     while (param--) {
-      this._terminal.lines.get(row).splice(this._terminal.x, 1);
+      this._terminal.lines.get(row).splice(this._terminal.currentScreen.cursorState.x, 1);
       this._terminal.lines.get(row).push(ch);
     }
   }
@@ -546,8 +546,8 @@ export class InputHandler implements IInputHandler {
       param = 1;
     }
 
-    row = this._terminal.y + this._terminal.ybase;
-    j = this._terminal.x;
+    row = this._terminal.currentScreen.cursorState.y + this._terminal.ybase;
+    j = this._terminal.currentScreen.cursorState.x;
     ch = [this._terminal.eraseAttr(), ' ', 1]; // xterm
 
     while (param-- && j < this._terminal.cols) {
@@ -561,7 +561,7 @@ export class InputHandler implements IInputHandler {
   public cursorBackwardTab(params: number[]): void {
     let param = params[0] || 1;
     while (param--) {
-      this._terminal.x = this._terminal.prevStop();
+      this._terminal.currentScreen.cursorState.x = this._terminal.prevStop();
     }
   }
 
@@ -574,9 +574,9 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.x = param - 1;
-    if (this._terminal.x >= this._terminal.cols) {
-      this._terminal.x = this._terminal.cols - 1;
+    this._terminal.currentScreen.cursorState.x = param - 1;
+    if (this._terminal.currentScreen.cursorState.x >= this._terminal.cols) {
+      this._terminal.currentScreen.cursorState.x = this._terminal.cols - 1;
     }
   }
 
@@ -590,9 +590,9 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.x += param;
-    if (this._terminal.x >= this._terminal.cols) {
-      this._terminal.x = this._terminal.cols - 1;
+    this._terminal.currentScreen.cursorState.x += param;
+    if (this._terminal.currentScreen.cursorState.x >= this._terminal.cols) {
+      this._terminal.currentScreen.cursorState.x = this._terminal.cols - 1;
     }
   }
 
@@ -601,11 +601,11 @@ export class InputHandler implements IInputHandler {
    */
   public repeatPrecedingCharacter(params: number[]): void {
     let param = params[0] || 1
-      , line = this._terminal.lines.get(this._terminal.ybase + this._terminal.y)
-      , ch = line[this._terminal.x - 1] || [this._terminal.defAttr, ' ', 1];
+      , line = this._terminal.lines.get(this._terminal.ybase + this._terminal.currentScreen.cursorState.y)
+      , ch = line[this._terminal.currentScreen.cursorState.x - 1] || [this._terminal.defAttr, ' ', 1];
 
     while (param--) {
-      line[this._terminal.x++] = ch;
+      line[this._terminal.currentScreen.cursorState.x++] = ch;
     }
   }
 
@@ -684,9 +684,9 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.y = param - 1;
-    if (this._terminal.y >= this._terminal.rows) {
-      this._terminal.y = this._terminal.rows - 1;
+    this._terminal.currentScreen.cursorState.y = param - 1;
+    if (this._terminal.currentScreen.cursorState.y >= this._terminal.rows) {
+      this._terminal.currentScreen.cursorState.y = this._terminal.rows - 1;
     }
   }
 
@@ -700,13 +700,13 @@ export class InputHandler implements IInputHandler {
     if (param < 1) {
       param = 1;
     }
-    this._terminal.y += param;
-    if (this._terminal.y >= this._terminal.rows) {
-      this._terminal.y = this._terminal.rows - 1;
+    this._terminal.currentScreen.cursorState.y += param;
+    if (this._terminal.currentScreen.cursorState.y >= this._terminal.rows) {
+      this._terminal.currentScreen.cursorState.y = this._terminal.rows - 1;
     }
     // If the end of the line is hit, prevent this action from wrapping around to the next line.
-    if (this._terminal.x >= this._terminal.cols) {
-      this._terminal.x--;
+    if (this._terminal.currentScreen.cursorState.x >= this._terminal.cols) {
+      this._terminal.currentScreen.cursorState.x--;
     }
   }
 
@@ -719,14 +719,14 @@ export class InputHandler implements IInputHandler {
     if (params[0] < 1) params[0] = 1;
     if (params[1] < 1) params[1] = 1;
 
-    this._terminal.y = params[0] - 1;
-    if (this._terminal.y >= this._terminal.rows) {
-      this._terminal.y = this._terminal.rows - 1;
+    this._terminal.currentScreen.cursorState.y = params[0] - 1;
+    if (this._terminal.currentScreen.cursorState.y >= this._terminal.rows) {
+      this._terminal.currentScreen.cursorState.y = this._terminal.rows - 1;
     }
 
-    this._terminal.x = params[1] - 1;
-    if (this._terminal.x >= this._terminal.cols) {
-      this._terminal.x = this._terminal.cols - 1;
+    this._terminal.currentScreen.cursorState.x = params[1] - 1;
+    if (this._terminal.currentScreen.cursorState.x >= this._terminal.cols) {
+      this._terminal.currentScreen.cursorState.x = this._terminal.cols - 1;
     }
   }
 
@@ -741,7 +741,7 @@ export class InputHandler implements IInputHandler {
   public tabClear(params: number[]): void {
     let param = params[0];
     if (param <= 0) {
-      delete this._terminal.tabs[this._terminal.x];
+      delete this._terminal.tabs[this._terminal.currentScreen.cursorState.x];
     } else if (param === 3) {
       this._terminal.tabs = {};
     }
@@ -933,8 +933,7 @@ export class InputHandler implements IInputHandler {
           break;
         case 1049: // alt screen buffer cursor
             this.saveCursor(params);//todo params contains text attribute we should store them too with cursor position
-            this.applyScreenBuffer(this._terminal.altScreen);//todo maybe clear ??????
-            break;
+            // FALL-THROUGH
         case 47: // alt screen buffer
             // FALL-THROUGH
         case 1047: // alt screen buffer
@@ -951,13 +950,29 @@ export class InputHandler implements IInputHandler {
     //   this._terminal.normal = this.saveScreenState();
     // }
     var cursorState = {
-      x: this._terminal.currentScreen.cursorState.x,
-      y: this._terminal.currentScreen.cursorState.y
+      x: this.getCoordinate(0, this._terminal.cols - 1, this._terminal.currentScreen.cursorState.x),//replace by increment
+      y: this.getCoordinate(0, this._terminal.rows - 1, this._terminal.currentScreen.cursorState.y)
     };
 
     this._terminal.currentScreen = screenBuffer;
     this.restoreScreenState(screenBuffer);
 
+    this._terminal.refresh(0, this._terminal.rows - 1);
+
+    this._terminal.currentScreen.cursorState = cursorState;
+    this._terminal.viewport.syncScrollArea();
+    this._terminal.showCursor();
+  }
+
+  //todo this method should be static
+  private getCoordinate(min: number, max: number, value: number): number {
+    if (value > max) {
+      return max;
+    }
+    if (value < min) {
+      return min;
+    }
+    return value;
   }
 
   // private saveScreenState(): ScreenState {
@@ -986,9 +1001,9 @@ export class InputHandler implements IInputHandler {
     this._terminal.scrollBottom = screenBuffer.scrollBottom;
     this._terminal.tabs = screenBuffer.tabs;
 
-    this._terminal.refresh(0, this._terminal.rows - 1);
-    this._terminal.viewport.syncScrollArea();
-    this._terminal.showCursor();
+    // this._terminal.refresh(0, this._terminal.rows - 1);
+    // this._terminal.viewport.syncScrollArea();
+    // this._terminal.showCursor();
   }
 
   /**
@@ -1145,15 +1160,15 @@ export class InputHandler implements IInputHandler {
           //restore cursor!
           console.log("1048!! Need restore !");
           break;
-        case 1049: // alt screen buffer cursor
-          this.restoreScreenState(this._terminal.normal);
+        case 1049:
+          this.applyScreenBuffer(this._terminal.normal);
           this.restoreCursor(params);
-          // this._terminal.showCursor();//todo maybe show method move to restoreCursorState?
+          this._terminal.showCursor();
           break;
         case 47: // normal screen buffer
           // FALL-THROUGH
         case 1047: // normal screen buffer - clearing it first
-          this.restoreScreenState(this._terminal.normal);
+          this.applyScreenBuffer(this._terminal.normal);
           break;
       }
     }
@@ -1373,9 +1388,9 @@ export class InputHandler implements IInputHandler {
         case 6:
           // cursor position
           this._terminal.send(C0.ESC + '['
-                    + (this._terminal.y + 1)
+                    + (this._terminal.currentScreen.cursorState.y + 1)
                     + ';'
-                    + (this._terminal.x + 1)
+                    + (this._terminal.currentScreen.cursorState.x + 1)
                     + 'R');
           break;
       }
@@ -1386,9 +1401,9 @@ export class InputHandler implements IInputHandler {
         case 6:
           // cursor position
           this._terminal.send(C0.ESC + '[?'
-                    + (this._terminal.y + 1)
+                    + (this._terminal.currentScreen.cursorState.y + 1)
                     + ';'
-                    + (this._terminal.x + 1)
+                    + (this._terminal.currentScreen.cursorState.x + 1)
                     + 'R');
           break;
         case 15:
@@ -1426,7 +1441,7 @@ export class InputHandler implements IInputHandler {
     this._terminal.scrollTop = 0;
     this._terminal.scrollBottom = this._terminal.rows - 1;
     this._terminal.curAttr = this._terminal.defAttr;
-    this._terminal.x = this._terminal.y = 0; // ?
+    this._terminal.currentScreen.cursorState.x = this._terminal.currentScreen.cursorState.y = 0; // ?
     this._terminal.charset = null;
     this._terminal.glevel = 0; // ??
     this._terminal.charsets = [null]; // ??
@@ -1472,8 +1487,8 @@ export class InputHandler implements IInputHandler {
     if (this._terminal.prefix) return;
     this._terminal.scrollTop = (params[0] || 1) - 1;
     this._terminal.scrollBottom = (params[1] && params[1] <= this._terminal.rows ? params[1] : this._terminal.rows) - 1;
-    this._terminal.x = 0;
-    this._terminal.y = 0;
+    this._terminal.currentScreen.cursorState.x = 0;
+    this._terminal.currentScreen.cursorState.y = 0;
   }
 
 
@@ -1482,8 +1497,8 @@ export class InputHandler implements IInputHandler {
    *   Save cursor (ANSI.SYS).
    */
   public saveCursor(params: number[]): void {
-    this._terminal.savedX = this._terminal.x;
-    this._terminal.savedY = this._terminal.y;
+    this._terminal.savedX = this._terminal.currentScreen.cursorState.x;
+    this._terminal.savedY = this._terminal.currentScreen.cursorState.y;
   }
 
 
@@ -1492,8 +1507,8 @@ export class InputHandler implements IInputHandler {
    *   Restore cursor (ANSI.SYS).
    */
   public restoreCursor(params: number[]): void {
-    this._terminal.x = this._terminal.savedX || 0;
-    this._terminal.y = this._terminal.savedY || 0;
+    this._terminal.currentScreen.cursorState.x = this._terminal.savedX || 0;
+    this._terminal.currentScreen.cursorState.y = this._terminal.savedY || 0;
   }
 }
 

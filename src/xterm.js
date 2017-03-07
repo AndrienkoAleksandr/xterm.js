@@ -143,16 +143,6 @@ function Terminal(options) {
    */
   this.ydisp = 0;
 
-  /**
-   * The cursor's x position after ybase
-   */
-  this.x = 0;
-
-  /**
-   * The cursor's y position after ybase
-   */
-  this.y = 0;
-
   this.cursorState = 0;
   this.cursorHidden = false;
   this.convertEol;
@@ -167,10 +157,6 @@ function Terminal(options) {
   this.originMode = false;
   this.insertMode = false;
   this.wraparoundMode = true; // defaults: xterm - true, vt100 - false
-  //todo here initialize normal
-  this.normal = null;//rename like follow
-  this.altScreen = null;
-  this.currentScreen = null;
 
   // charset
   this.charset = null;
@@ -215,7 +201,7 @@ function Terminal(options) {
   this.parser = new Parser(this.inputHandler, this);
   // Reuse renderer if the Terminal is being recreated via a Terminal.reset call.
   this.renderer = this.renderer || null;
-  this.linkifier = this.linkifier || null;;
+  this.linkifier = this.linkifier || null;
 
   // user input states
   this.writeBuffer = [];
@@ -250,6 +236,40 @@ function Terminal(options) {
 
   // Store if user went browsing history in scrollback
   this.userScrolling = false;
+
+//todo need method to create empty states.
+  this.normal = {
+    lines: this.lines,
+    ybase: 0,
+    ydisp: 0,
+    cursorState: {
+      x: 0,
+      y: 0
+    },
+    scrollBottom: this.scrollBottom,
+    scrollTop: 0,
+    tabs: []
+  };
+  this.currentScreen = this.normal;
+
+  var altScreenLines = new CircularList(this.rows);//todo think about it scrollBack or rows
+  var count = this.rows;
+  while (count--) {
+    altScreenLines.push(this.blankLine());
+  }
+
+  this.altScreen = {
+    lines: altScreenLines,
+    ybase: 0,
+    ydisp: 0,
+    cursorState: {
+      x: 0,
+      y: 0
+    },
+    scrollBottom: this.scrollBottom,
+    scrollTop: 0,
+    tabs: []
+  };
 }
 
 inherits(Terminal, EventEmitter);
@@ -469,7 +489,7 @@ Terminal.prototype.blur = function() {
  */
 Terminal.bindBlur = function (term) {
   on(term.textarea, 'blur', function (ev) {
-    term.refresh(term.y, term.y);
+    term.refresh(term.currentScreen.cursorState.y, term.currentScreen.cursorState.y);
     if (term.sendFocus) {
       term.send(C0.ESC + '[O');
     }
@@ -668,7 +688,9 @@ Terminal.prototype.open = function(parent) {
   this.initGlobal();
 
   // Ensure there is a Terminal.focus.
-  this.focus();
+  if (this.focusOnOpen) {
+    this.focus();
+  }
 
   on(this.element, 'click', function() {
     var selection = document.getSelection(),
@@ -682,39 +704,6 @@ Terminal.prototype.open = function(parent) {
   // Listen for mouse events and translate
   // them into terminal mouse protocols.
   this.bindMouse();
-
-  this.normal = {
-    lines: this.lines,
-    ybase: this.ybase,
-    ydisp: this.ydisp,
-    cursorState: {
-      x: 0,
-      y: 0
-    },
-    scrollBottom: this.scrollBottom,
-    scrollTop: this.scrollTop,
-    tabs: this.tabs
-  };
-  this.currentScreen = this.normal;
-
-  var altScreenLines = new CircularList(this.rows);//todo think about it scrollBack or rows
-  var count = this.rows;
-  while (count--) {
-    altScreenLines.push(this.blankLine());
-  }
-
-  this.altScreen = {
-    lines: altScreenLines,
-    ybase: this.ybase,
-    ydisp: this.ydisp,
-    cursorState: {
-      x: 0,
-      y: 0
-    },
-    scrollBottom: this.scrollBottom,
-    scrollTop: this.scrollTop,
-    tabs: this.tabs
-  };
 
   /**
    * This event is emitted when terminal has completed opening.
@@ -1121,9 +1110,9 @@ Terminal.prototype.queueLinkification = function(start, end) {
  * Display the cursor element
  */
 Terminal.prototype.showCursor = function() {
-  if (!this.cursorState) {
+  if (!this.cursorState && this.currentScreen) {
     this.cursorState = 1;
-    this.refresh(this.y, this.y);
+    this.refresh(this.currentScreen.cursorState.y, this.currentScreen.cursorState.y);
   }
 };
 
@@ -1278,12 +1267,12 @@ Terminal.prototype.innerWrite = function() {
       this.xoffSentToCatchUp = false;
     }
 
-    this.refreshStart = this.y;
-    this.refreshEnd = this.y;
+    this.refreshStart = this.currentScreen.cursorState.y;
+    this.refreshEnd = this.currentScreen.cursorState.y;
 
     this.parser.parse(data);
 
-    this.updateRange(this.y);
+    this.updateRange(this.currentScreen.cursorState.y);
     this.refresh(this.refreshStart, this.refreshEnd);
   }
   if (this.writeBuffer.length > 0) {
@@ -1860,9 +1849,9 @@ Terminal.prototype.resize = function(x, y) {
   if (j < y) {
     el = this.element;
     while (j++ < y) {
-      // y is rows, not this.y
+      // y is rows, not this.currentScreen.cursorState.y
       if (this.lines.length < y + this.ybase) {
-        if (this.ybase > 0 && this.lines.length <= this.ybase + this.y + addToY + 1) {
+        if (this.ybase > 0 && this.lines.length <= this.ybase + this.currentScreen.cursorState.y + addToY + 1) {
           // There is room above the buffer and there are no empty elements below the line,
           // scroll up
           this.ybase--;
@@ -1884,7 +1873,7 @@ Terminal.prototype.resize = function(x, y) {
   } else { // (j > y)
     while (j-- > y) {
       if (this.lines.length > y + this.ybase) {
-        if (this.lines.length > this.ybase + this.y + 1) {
+        if (this.lines.length > this.ybase + this.currentScreen.cursorState.y + 1) {
           // The line is a blank line below the cursor, remove it
           this.lines.pop();
         } else {
@@ -1903,15 +1892,15 @@ Terminal.prototype.resize = function(x, y) {
   this.rows = y;
 
   // Make sure that the cursor stays on screen
-  if (this.y >= y) {
-    this.y = y - 1;
+  if (this.currentScreen.cursorState.y >= y) {
+    this.currentScreen.cursorState.y = y - 1;
   }
   if (addToY) {
-    this.y += addToY;
+    this.currentScreen.cursorState.y += addToY;
   }
 
-  if (this.x >= x) {
-    this.x = x - 1;
+  if (this.currentScreen.cursorState.x >= x) {
+    this.currentScreen.cursorState.x = x - 1;
   }
 
   this.scrollTop = 0;
@@ -1975,7 +1964,7 @@ Terminal.prototype.setupStops = function(i) {
  * @param {number} x The position to move the cursor to the previous tab stop.
  */
 Terminal.prototype.prevStop = function(x) {
-  if (x == null) x = this.x;
+  if (x == null) x = this.currentScreen.cursorState.x;
   while (!this.tabs[--x] && x > 0);
   return x >= this.cols
     ? this.cols - 1
@@ -1988,7 +1977,7 @@ Terminal.prototype.prevStop = function(x) {
  * @param {number} x The position to move the cursor one tab stop forward.
  */
 Terminal.prototype.nextStop = function(x) {
-  if (x == null) x = this.x;
+  if (x == null) x = this.currentScreen.cursorState.x;
   while (!this.tabs[++x] && x < this.cols);
   return x >= this.cols
     ? this.cols - 1
@@ -2037,15 +2026,15 @@ Terminal.prototype.eraseLeft = function(x, y) {
  * Clears the entire buffer, making the prompt line the new first line.
  */
 Terminal.prototype.clear = function() {
-  if (this.ybase === 0 && this.y === 0) {
+  if (this.ybase === 0 && this.currentScreen.cursorState.y === 0) {
     // Don't clear if it's already clear
     return;
   }
-  this.lines.set(0, this.lines.get(this.ybase + this.y));
+  this.lines.set(0, this.lines.get(this.ybase + this.currentScreen.cursorState.y));
   this.lines.length = 1;
   this.ydisp = 0;
   this.ybase = 0;
-  this.y = 0;
+  this.currentScreen.cursorState.y = 0;
   for (var i = 1; i < this.rows; i++) {
     this.lines.push(this.blankLine());
   }
@@ -2145,14 +2134,14 @@ Terminal.prototype.handleTitle = function(title) {
  * ESC D Index (IND is 0x84).
  */
 Terminal.prototype.index = function() {
-  this.y++;
-  if (this.y > this.scrollBottom) {
-    this.y--;
+  this.currentScreen.cursorState.y++;
+  if (this.currentScreen.cursorState.y > this.scrollBottom) {
+    this.currentScreen.cursorState.y--;
     this.scroll();
   }
   // If the end of the line is hit, prevent this action from wrapping around to the next line.
-  if (this.x >= this.cols) {
-    this.x--;
+  if (this.currentScreen.cursorState.x >= this.cols) {
+    this.currentScreen.cursorState.x--;
   }
 };
 
@@ -2164,16 +2153,16 @@ Terminal.prototype.index = function() {
  */
 Terminal.prototype.reverseIndex = function() {
   var j;
-  if (this.y === this.scrollTop) {
+  if (this.currentScreen.cursorState.y === this.scrollTop) {
     // possibly move the code below to term.reverseScroll();
     // test: echo -ne '\e[1;1H\e[44m\eM\e[0m'
     // blankLine(true) is xterm/linux behavior
-    this.lines.shiftElements(this.y + this.ybase, this.rows - 1, 1);
-    this.lines.set(this.y + this.ybase, this.blankLine(true));
+    this.lines.shiftElements(this.currentScreen.cursorState.y + this.ybase, this.rows - 1, 1);
+    this.lines.set(this.currentScreen.cursorState.y + this.ybase, this.blankLine(true));
     this.updateRange(this.scrollTop);
     this.updateRange(this.scrollBottom);
   } else {
-    this.y--;
+    this.currentScreen.cursorState.y--;
   }
 };
 
@@ -2217,7 +2206,7 @@ Terminal.prototype.printSavedNormalScreenContent = function (lines) {
  * ESC H Tab Set (HTS is 0x88).
  */
 Terminal.prototype.tabSet = function() {
-  this.tabs[this.x] = true;
+  this.tabs[this.currentScreen.cursorState.x] = true;
 };
 
 /**

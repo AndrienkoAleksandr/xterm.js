@@ -4,7 +4,9 @@ var Terminal = require('../xterm');
 
 describe('xterm.js', function() {
   var xterm;
-  var container = createDiv();
+
+  var container = document.createElement("div");
+  document.body.appendChild(container);
 
   beforeEach(function () {
     xterm = new Terminal();
@@ -59,9 +61,9 @@ describe('xterm.js', function() {
 
   describe('clear', function() {
     it('should clear a buffer equal to rows', function() {
-      var promptLine = xterm.lines.get(xterm.ybase + xterm.y);
+      var promptLine = xterm.lines.get(xterm.ybase + xterm.currentScreen.cursorState.y);
       xterm.clear();
-      assert.equal(xterm.y, 0);
+      assert.equal(xterm.currentScreen.cursorState.y, 0);
       assert.equal(xterm.ybase, 0);
       assert.equal(xterm.ydisp, 0);
       assert.equal(xterm.lines.length, xterm.rows);
@@ -76,9 +78,9 @@ describe('xterm.js', function() {
         xterm.write('test\n');
       }
 
-      var promptLine = xterm.lines.get(xterm.ybase + xterm.y);
+      var promptLine = xterm.lines.get(xterm.ybase + xterm.currentScreen.cursorState.y);
       xterm.clear();
-      assert.equal(xterm.y, 0);
+      assert.equal(xterm.currentScreen.cursorState.y, 0);
       assert.equal(xterm.ybase, 0);
       assert.equal(xterm.ydisp, 0);
       assert.equal(xterm.lines.length, xterm.rows);
@@ -88,10 +90,10 @@ describe('xterm.js', function() {
       }
     });
     it('should not break the prompt when cleared twice', function() {
-      var promptLine = xterm.lines.get(xterm.ybase + xterm.y);
+      var promptLine = xterm.lines.get(xterm.ybase + xterm.currentScreen.cursorState.y);
       xterm.clear();
       xterm.clear();
-      assert.equal(xterm.y, 0);
+      assert.equal(xterm.currentScreen.cursorState.y, 0);
       assert.equal(xterm.ybase, 0);
       assert.equal(xterm.ydisp, 0);
       assert.equal(xterm.lines.length, xterm.rows);
@@ -566,10 +568,10 @@ describe('xterm.js', function() {
     it('2 characters at last cell', function() {
       var high = String.fromCharCode(0xD800);
       for (var i=0xDC00; i<=0xDCFF; ++i) {
-        xterm.x = xterm.cols - 1;
+        xterm.currentScreen.cursorState.x = xterm.cols - 1;
         xterm.write(high + String.fromCharCode(i));
-        expect(xterm.lines.get(0)[xterm.x-1][1]).eql(high + String.fromCharCode(i));
-        expect(xterm.lines.get(0)[xterm.x-1][1].length).eql(2);
+        expect(xterm.lines.get(0)[xterm.currentScreen.cursorState.x-1][1]).eql(high + String.fromCharCode(i));
+        expect(xterm.lines.get(0)[xterm.currentScreen.cursorState.x-1][1].length).eql(2);
         expect(xterm.lines.get(1)[0][1]).eql(' ');
         xterm.reset();
       }
@@ -577,7 +579,7 @@ describe('xterm.js', function() {
     it('2 characters per cell over line end with autowrap', function() {
       var high = String.fromCharCode(0xD800);
       for (var i=0xDC00; i<=0xDCFF; ++i) {
-        xterm.x = xterm.cols - 1;
+        xterm.currentScreen.cursorState.x = xterm.cols - 1;
         xterm.wraparoundMode = true;
         xterm.write('a' + high + String.fromCharCode(i));
         expect(xterm.lines.get(0)[xterm.cols-1][1]).eql('a');
@@ -590,7 +592,7 @@ describe('xterm.js', function() {
     it('2 characters per cell over line end without autowrap', function() {
       var high = String.fromCharCode(0xD800);
       for (var i=0xDC00; i<=0xDCFF; ++i) {
-        xterm.x = xterm.cols - 1;
+        xterm.currentScreen.cursorState.x = xterm.cols - 1;
         xterm.wraparoundMode = false;
         xterm.write('a' + high + String.fromCharCode(i));
         // auto wraparound mode should cut off the rest of the line
@@ -623,7 +625,7 @@ describe('xterm.js', function() {
       expect(xterm.lines.get(0)[3][2]).eql(1);
     });
     it('café - end of line', function() {
-      xterm.x = xterm.cols - 1 - 3;
+      xterm.currentScreen.cursorState.x = xterm.cols - 1 - 3;
       xterm.write('cafe\u0301');
       expect(xterm.lines.get(0)[xterm.cols-1][1]).eql('e\u0301');
       expect(xterm.lines.get(0)[xterm.cols-1][1].length).eql(2);
@@ -664,15 +666,15 @@ describe('xterm.js', function() {
 
   describe('unicode - fullwidth characters', function() {
     it('cursor movement even', function() {
-      expect(xterm.x).eql(0);
+      expect(xterm.currentScreen.cursorState.x).eql(0);
       xterm.write('￥');
-      expect(xterm.x).eql(2);
+      expect(xterm.currentScreen.cursorState.x).eql(2);
     });
     it('cursor movement odd', function() {
-      xterm.x = 1;
-      expect(xterm.x).eql(1);
+      xterm.currentScreen.cursorState.x = 1;
+      expect(xterm.currentScreen.cursorState.x).eql(1);
       xterm.write('￥');
-      expect(xterm.x).eql(3);
+      expect(xterm.currentScreen.cursorState.x).eql(3);
     });
     it('line of ￥ even', function() {
       xterm.wraparoundMode = true;
@@ -696,7 +698,7 @@ describe('xterm.js', function() {
     });
     it('line of ￥ odd', function() {
       xterm.wraparoundMode = true;
-      xterm.x = 1;
+      xterm.currentScreen.cursorState.x = 1;
       xterm.write(Array(50).join('￥'));
       for (var i=1; i<xterm.cols-1; ++i) {
         var tchar = xterm.lines.get(0)[i];
@@ -721,7 +723,7 @@ describe('xterm.js', function() {
     });
     it('line of ￥ with combining odd', function() {
       xterm.wraparoundMode = true;
-      xterm.x = 1;
+      xterm.currentScreen.cursorState.x = 1;
       xterm.write(Array(50).join('￥\u0301'));
       for (var i=1; i<xterm.cols-1; ++i) {
         var tchar = xterm.lines.get(0)[i];
@@ -766,7 +768,7 @@ describe('xterm.js', function() {
     });
     it('line of surrogate fullwidth with combining odd', function() {
       xterm.wraparoundMode = true;
-      xterm.x = 1;
+      xterm.currentScreen.cursorState.x = 1;
       xterm.write(Array(50).join('\ud843\ude6d\u0301'));
       for (var i=1; i<xterm.cols-1; ++i) {
         var tchar = xterm.lines.get(0)[i];
@@ -814,8 +816,8 @@ describe('xterm.js', function() {
   describe('insert mode', function() {
     it('halfwidth - all', function () {
       xterm.write(Array(9).join('0123456789').slice(-80));
-      xterm.x = 10;
-      xterm.y = 0;
+      xterm.currentScreen.cursorState.x = 10;
+      xterm.currentScreen.cursorState.y = 0;
       xterm.insertMode = true;
       xterm.write('abcde');
       expect(xterm.lines.get(0).length).eql(xterm.cols);
@@ -826,8 +828,8 @@ describe('xterm.js', function() {
     });
     it('fullwidth - insert', function() {
       xterm.write(Array(9).join('0123456789').slice(-80));
-      xterm.x = 10;
-      xterm.y = 0;
+      xterm.currentScreen.cursorState.x = 10;
+      xterm.currentScreen.cursorState.y = 0;
       xterm.insertMode = true;
       xterm.write('￥￥￥');
       expect(xterm.lines.get(0).length).eql(xterm.cols);
@@ -839,8 +841,8 @@ describe('xterm.js', function() {
     });
     it('fullwidth - right border', function() {
       xterm.write(Array(41).join('￥'));
-      xterm.x = 10;
-      xterm.y = 0;
+      xterm.currentScreen.cursorState.x = 10;
+      xterm.currentScreen.cursorState.y = 0;
       xterm.insertMode = true;
       xterm.write('a');
       expect(xterm.lines.get(0).length).eql(xterm.cols);
@@ -855,108 +857,256 @@ describe('xterm.js', function() {
     });
   });
 
-  // describe("saveCursorPositionForAlternativeScreen2", function() {
-  //   jsdom();
-  //   it('should save and restore cursor position after switch from alternative screen to normal screen', function () {
-  //     //add div for xterm creation
-  //     xterm.element = createDiv();
-  //
-  //     //render midnight
-  //     xterm.write("]0;@60617cc44283:/terminal[root@60617cc44283 terminal]# ");
-  //     xterm.write("\r[K[root@60617cc44283 terminal]# ");
-  //     xterm.write("\r\n]0;@60617cc44283:/terminal[root@60617cc44283 terminal]# ");
-  //     xterm.write("\r\n]0;@60617cc44283:/terminal[root@60617cc44283 terminal]# mc");
-  //     xterm.write("\r\n[?1049h[1;10r[4l[10;1H");
-  //     xterm.write("\r[K");
-  //     xterm.write("\r[?1049l[?1001s[?1002h[?1006h[?2004h[?1049h[5;15H(B[30m[46m test");
-  //
-  //     xterm.write("[?1006l[?1002l[?1001r[?2004l[1;1H[K");
-  //     xterm.write("\n[K");
-  //     xterm.write("\n[K");
-  //     xterm.write("\n[K");
-  //     xterm.write("\n[K");
-  //     xterm.write("\n[K");
-  //     xterm.write("\n[K");
-  //     xterm.write("\n[K");
-  //     xterm.write("\n[K[1;34H[?1l>[10;1H(B[m[39;49m");
-  //     xterm.write("\r[K");
-  //     xterm.write("\r[?1049l");
-  //     xterm.write("\r\n[root@60617cc44283 terminal#] ");
-  //
-  //     assert.equal(xterm.x, 30);
-  //     assert.equal(xterm.y, 4);
-  //     assert.equal(getTextFromLine(xterm.lines, 0), "[root@60617cc44283 terminal]#                                                  ");
-  //     assert.equal(getTextFromLine(xterm.lines, 1), "[root@60617cc44283 terminal]#                                                  ");
-  //     assert.equal(getTextFromLine(xterm.lines, 2), "[root@60617cc44283 terminal]# mc                                               ");
-  //     assert.equal(getTextFromLine(xterm.lines, 3), "                                                                               ");
-  //     assert.equal(getTextFromLine(xterm.lines, 4), "[root@60617cc44283 terminal#]                                                  ");
-  //   });
-  // });
+  describe("saveCursorPositionForAlternativeScreen2", function() {
+    it('should save and restore cursor position after switch from alternative screen to normal screen', function () {
+      //add div for xterm creation
+      xterm.open(this.container);//why do we need this?
+      assert.equal(xterm.currentScreen, xterm.normal);
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 0);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 0);
 
+      //render midnight
+      xterm.write("]0;@60617cc44283:/terminal[root@60617cc44283 terminal]# ");
+      xterm.write("\r[K[root@60617cc44283 terminal]# ");
+      xterm.write("\r\n]0;@60617cc44283:/terminal[root@60617cc44283 terminal]# ");
+      xterm.write("\r\n]0;@60617cc44283:/terminal[root@60617cc44283 terminal]# test");
+
+      //save cursor for normal screen and switch to alternative screen
+      xterm.write("\r\n[?1049h");
+      assert.equal(xterm.currentScreen, xterm.altScreen);
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 3);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      xterm.write("[1;10r[4l");
+      //move cursor to position new position x = 0, y = 23
+      xterm.write("[24;1H");
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 23);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      xterm.write("\r[K");
+
+      //switch to normal screen and restore cursor position for normal screen
+      xterm.write("\r[?1049l");
+      assert.equal(xterm.currentScreen, xterm.normal);
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 23);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      //set up mouse params
+      xterm.write("[?1001s[?1002h[?1006h[?2004h");
+
+      //save cursor position and switch to alternative screen
+      xterm.write("[?1049h");
+
+      //set cursor position in the middle of the screen
+      xterm.write("[12;35H");
+      assert.equal(xterm.altScreen.cursorState.x, 34);
+      assert.equal(xterm.altScreen.cursorState.y, 11);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      //write text on the colored background
+      xterm.write("(B[30m[46m test");
+      assert.equal(getTextFromLine(xterm.altScreen.lines, 11), "                                   test                                        ");
+
+      // Bellow we clean up alternative screen and go back to the normal screen.
+      // All lines of the normal screen should not be lost and cursor state should be restored.
+      xterm.write("[?1006l[?1002l[?1001r[?2004l");
+      xterm.write("[1;1H");
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 0);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      //[K - delete line
+      xterm.write("[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("[1;34H");
+      assert.equal(xterm.altScreen.cursorState.x, 33);
+      assert.equal(xterm.altScreen.cursorState.y, 0);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      xterm.write("[?1l>");
+      xterm.write("[24;1H");
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 23);
+      assert.equal(xterm.normal.cursorState.x,0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      xterm.write("(B[m[39;49m");
+      xterm.write("\r[K");
+
+      //switch to normal screen
+      xterm.write("\r[?1049l");
+      assert.equal(xterm.currentScreen, xterm.normal);
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 23);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      xterm.write("\r\n[root@60617cc44283 terminal#] ");
+      assert.equal(xterm.currentScreen.cursorState.x, 30);
+      assert.equal(xterm.currentScreen.cursorState.y, 4);
+      assert.equal(getTextFromLine(xterm.lines, 0), "[root@60617cc44283 terminal]#                                                  ");
+      assert.equal(getTextFromLine(xterm.lines, 1), "[root@60617cc44283 terminal]#                                                  ");
+      assert.equal(getTextFromLine(xterm.lines, 2), "[root@60617cc44283 terminal]# test                                             ");
+      assert.equal(getTextFromLine(xterm.lines, 3), "                                                                               ");
+      assert.equal(getTextFromLine(xterm.lines, 4), "[root@60617cc44283 terminal#]                                                  ");
+    });
+  });
+//todo get output and real check
   describe("saveCursorPositionForAlternativeScreen3", function() {
     it('should save and restore cursor position after switch from alternative screen to normal screen', function () {
 
-      xterm.open(container);
+      xterm.open(this.container);//why do we need this?
+      assert.equal(xterm.currentScreen, xterm.normal);
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 0);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 0);
 
-      //render test
       xterm.write("]0;root@2e5435072925: /terminalroot@2e5435072925:/terminal# ");
       xterm.write("\r[K]0;root@2e5435072925: /terminalroot@2e5435072925:/terminal# ");
       xterm.write("\r\n]0;root@2e5435072925: /terminalroot@2e5435072925:/terminal# ");
       xterm.write("\r\n]0;root@2e5435072925: /terminalroot@2e5435072925:/terminal# test");
 
-      console.log("normal screen initial: ");
-      xterm.printSavedNormalScreenContent(xterm.normal.lines);
-      console.log("alt screen initial: ");
-      xterm.printSavedNormalScreenContent(xterm.altScreen.lines);
-
+      //save cursor for normal screen and switch to alternative screen
       xterm.write("\r\n[?1049h");
+      assert.equal(xterm.currentScreen, xterm.altScreen);
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 3);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
 
-      console.log("normal screen initial: ");
-      xterm.printSavedNormalScreenContent(xterm.normal.lines);
-      console.log("alt screen initial: ");
-      xterm.printSavedNormalScreenContent(xterm.altScreen.lines);
-      console.log("cursor saved state: " + xterm.savedX + " " + xterm.savedY);
-      console.log("cursor alternative screen state " + xterm.altScreen.cursorState.x + " " + xterm.altScreen.cursorState.y);
+      xterm.write("[1;10r[4l");
+      //move cursor to position new position x = 0, y = 23
+      xterm.write("[24;1H");
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 23);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
 
-      // xterm.write("[1;10r[4l[10;1H");
-      // xterm.write("\r[K");
-      // xterm.write("\r[?1049l7[?47h[?1001s[?1002h[?1006h[?2004h[?1049h[5;15H[30m[46m test");
-      // //clean up
-      // xterm.write("[?1006l[?1002l[?1001r[?2004l[1;1H[K");
-      // xterm.write("\n[K");
-      // xterm.write("\n[K");
-      // xterm.write("\n[K");
-      // xterm.write("\n[K");
-      // xterm.write("\n[K");
-      // xterm.write("\n[K");
-      // xterm.write("\n[K");
-      // xterm.write("\n[K");
-      // xterm.write("\n[K[1;34H[?1l>[10;1H(B[m[39;49m");
-      // xterm.write("\r[K");
-      // xterm.write("\r[?1049l[?47l8[m");
-      // xterm.write("\r\nroot@2e5435072925:/terminal# ");
+      xterm.write("\r[K\r");
 
-      // assert.equal(xterm.x, 29);
-      // assert.equal(xterm.y, 4);
-      // assert.equal(getTextFromLine(xterm.lines, 0), "root@2e5435072925:/terminal#                                                   ");
-      // assert.equal(getTextFromLine(xterm.lines, 1), "root@2e5435072925:/terminal#                                                   ");
-      // assert.equal(getTextFromLine(xterm.lines, 2), "root@2e5435072925:/terminal# mc                                                ");
-      // assert.equal(getTextFromLine(xterm.lines, 3), "                                                                               ");
-      // assert.equal(getTextFromLine(xterm.lines, 4), "root@2e5435072925:/terminal#                                                   ");
+      //switch to normal screen and restore cursor position for normal screen
+      xterm.write("[?1049l");
+      assert.equal(xterm.currentScreen, xterm.normal);
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 23);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      //save cursor '7' and switch to alternative screen '[?47h'
+      assert.equal(xterm.currentScreen, xterm.normal);
+      xterm.write("7[?47h");
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 3);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      xterm.write("[?1001s[?1002h[?1006h[?2004h");//set up mouse params
+
+      //"control shot" - duplicated command to switch to alternative screen, analog previous combination 7[?47h
+      xterm.write("[?1049h");
+      assert.equal(xterm.currentScreen, xterm.altScreen);
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 3);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      //set cursor position in the middle of the screen
+      xterm.write("[12;35H");
+      assert.equal(xterm.altScreen.cursorState.x, 34);
+      assert.equal(xterm.altScreen.cursorState.y, 11);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      //write text on the colored background
+      xterm.write("[30m[46m test");
+      assert.equal(getTextFromLine(xterm.altScreen.lines, 11), "                                   test                                        ");
+
+      // Bellow we clean up alternative screen and go back to the normal screen.
+      // All lines of the normal screen should not be lost and cursor state should be restored.
+      xterm.write("[?1006l[?1002l[?1001r[?2004l");//set up mouse params
+      xterm.write("[1;1H");
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 0);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      //[K - delete line
+      xterm.write("[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("\n[K");
+      xterm.write("[1;34H");
+      assert.equal(xterm.altScreen.cursorState.x, 33);
+      assert.equal(xterm.altScreen.cursorState.y, 0);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      xterm.write("[?1l>");
+      xterm.write("[24;1H");
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 23);
+      assert.equal(xterm.normal.cursorState.x,0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      xterm.write("(B[m[39;49m");
+      xterm.write("\r[K\r");
+
+      //switch to normal screen
+      xterm.write("[?1049l");
+      assert.equal(xterm.currentScreen, xterm.normal);
+
+      //"control shot" - duplicated command to switch to normal screen, analog previous combination [?47l8
+      xterm.write("[?47l8");
+      assert.equal(xterm.currentScreen, xterm.normal);
+      assert.equal(xterm.altScreen.cursorState.x, 0);
+      assert.equal(xterm.altScreen.cursorState.y, 23);
+      assert.equal(xterm.normal.cursorState.x, 0);
+      assert.equal(xterm.normal.cursorState.y, 3);
+
+      xterm.write("\r\nroot@2e5435072925:/terminal# ");
+
+      assert.equal(xterm.currentScreen.cursorState.x, 29);
+      assert.equal(xterm.currentScreen.cursorState.y, 4);
+
+      assert.equal(getTextFromLine(xterm.lines, 0), "root@2e5435072925:/terminal#                                                   ");
+      assert.equal(getTextFromLine(xterm.lines, 1), "root@2e5435072925:/terminal#                                                   ");
+      assert.equal(getTextFromLine(xterm.lines, 2), "root@2e5435072925:/terminal# test                                              ");
+      assert.equal(getTextFromLine(xterm.lines, 3), "                                                                               ");
+      assert.equal(getTextFromLine(xterm.lines, 4), "root@2e5435072925:/terminal#                                                   ");
     });
   });
 
-  function createDiv() {
-    var div = document.createElement("div");
-    return document.body.appendChild(div);
-  }
-
-  function getTextFromLine(lines, linNumber) {
+  function getTextFromLine(lines, lineNumber) {
     var text = "";
-    for (var i = 0; i < lines.get(linNumber).length - 1; i++) {
-      text += lines[linNumber][i][1];
+    for (var i = 0; i < lines.get(lineNumber).length - 1; i++) {
+      text += lines.get(lineNumber)[i][1];
     }
-    console.log("text " + text);
+    console.log("*" + text);
     return text;
   }
 });

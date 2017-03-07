@@ -145,10 +145,10 @@ export class Renderer {
       }
       out = '';
 
-      if (this._terminal.y === y - (this._terminal.ybase - this._terminal.ydisp)
+      if (this._terminal.currentScreen.cursorState.y === y - (this._terminal.ybase - this._terminal.ydisp)
           && this._terminal.cursorState
           && !this._terminal.cursorHidden) {
-        x = this._terminal.x;
+        x = this._terminal.currentScreen.cursorState.x;
       } else {
         x = -1;
       }
