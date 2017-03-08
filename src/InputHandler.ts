@@ -741,9 +741,9 @@ export class InputHandler implements IInputHandler {
   public tabClear(params: number[]): void {
     let param = params[0];
     if (param <= 0) {
-      delete this._terminal.tabs[this._terminal.currentScreen.cursorState.x];
+      delete this._terminal.currentScreen.tabs[this._terminal.currentScreen.cursorState.x];
     } else if (param === 3) {
-      this._terminal.tabs = {};
+      this._terminal.currentScreen.tabs = {};
     }
   }
 
@@ -933,7 +933,9 @@ export class InputHandler implements IInputHandler {
           break;
         case 1049: // alt screen buffer cursor
             this.saveCursor(params);//todo params contains text attribute we should store them too with cursor position
-            // FALL-THROUGH
+            this.applyScreenBuffer(this._terminal.altScreen);
+            break;
+            // FALL-THROUGH todo uncompleted
         case 47: // alt screen buffer
             // FALL-THROUGH
         case 1047: // alt screen buffer
@@ -950,8 +952,8 @@ export class InputHandler implements IInputHandler {
     //   this._terminal.normal = this.saveScreenState();
     // }
     var cursorState = {
-      x: this.getCoordinate(0, this._terminal.cols - 1, this._terminal.currentScreen.cursorState.x),//replace by increment
-      y: this.getCoordinate(0, this._terminal.rows - 1, this._terminal.currentScreen.cursorState.y)
+      x: this.clamp(0, this._terminal.cols - 1, this._terminal.currentScreen.cursorState.x),//replace by increment
+      y: this.clamp(0, this._terminal.rows - 1, this._terminal.currentScreen.cursorState.y)
     };
 
     this._terminal.currentScreen = screenBuffer;
@@ -965,7 +967,7 @@ export class InputHandler implements IInputHandler {
   }
 
   //todo this method should be static
-  private getCoordinate(min: number, max: number, value: number): number {
+  private clamp(min: number, max: number, value: number): number {
     if (value > max) {
       return max;
     }
@@ -995,7 +997,6 @@ export class InputHandler implements IInputHandler {
    */
   private restoreScreenState(screenBuffer: ScreenState) {
     this._terminal.lines = screenBuffer.lines;
-    this._terminal.tabs = screenBuffer.tabs;
 
     // this._terminal.refresh(0, this._terminal.rows - 1);
     // this._terminal.viewport.syncScrollArea();
@@ -1503,8 +1504,8 @@ export class InputHandler implements IInputHandler {
    *   Restore cursor (ANSI.SYS).
    */
   public restoreCursor(params: number[]): void {
-    this._terminal.currentScreen.cursorState.x = this._terminal.savedX || 0;
-    this._terminal.currentScreen.cursorState.y = this._terminal.savedY || 0;
+    this._terminal.currentScreen.cursorState.x = this.clamp(0, this._terminal.cols - 1, this._terminal.savedX) || 0;
+    this._terminal.currentScreen.cursorState.y = this.clamp(0, this._terminal.rows - 1, this._terminal.savedY) || 0;
   }
 }
 

@@ -220,13 +220,7 @@ function Terminal(options) {
     this.lines.push(this.blankLine());
   }
 
-  this.tabs;
-  this.setupStops();
-
-  // Store if user went browsing history in scrollback
-  this.userScrolling = false;
-
-//todo need method to create empty states.
+  //todo need method to create empty states.
   this.normal = {
     lines: this.lines,
     ybase: 0,
@@ -259,6 +253,11 @@ function Terminal(options) {
     scrollTop: 0,
     tabs: []
   };
+
+  this.setupStops();
+
+  // Store if user went browsing history in scrollback
+  this.userScrolling = false;
 }
 
 inherits(Terminal, EventEmitter);
@@ -1934,16 +1933,16 @@ Terminal.prototype.maxRange = function() {
  */
 Terminal.prototype.setupStops = function(i) {
   if (i != null) {
-    if (!this.tabs[i]) {
+    if (!this.currentScreen.tabs[i]) {
       i = this.prevStop(i);
     }
   } else {
-    this.tabs = {};
+    this.currentScreen.tabs = {};
     i = 0;
   }
 
   for (; i < this.cols; i += this.getOption('tabStopWidth')) {
-    this.tabs[i] = true;
+    this.currentScreen.tabs[i] = true;
   }
 };
 
@@ -1954,7 +1953,7 @@ Terminal.prototype.setupStops = function(i) {
  */
 Terminal.prototype.prevStop = function(x) {
   if (x == null) x = this.currentScreen.cursorState.x;
-  while (!this.tabs[--x] && x > 0);
+  while (!this.currentScreen.tabs[--x] && x > 0);
   return x >= this.cols
     ? this.cols - 1
   : x < 0 ? 0 : x;
@@ -1967,7 +1966,7 @@ Terminal.prototype.prevStop = function(x) {
  */
 Terminal.prototype.nextStop = function(x) {
   if (x == null) x = this.currentScreen.cursorState.x;
-  while (!this.tabs[++x] && x < this.cols);
+  while (!this.currentScreen.tabs[++x] && x < this.cols);
   return x >= this.cols
     ? this.cols - 1
   : x < 0 ? 0 : x;
@@ -2195,7 +2194,7 @@ Terminal.prototype.printSavedNormalScreenContent = function (lines) {
  * ESC H Tab Set (HTS is 0x88).
  */
 Terminal.prototype.tabSet = function() {
-  this.tabs[this.currentScreen.cursorState.x] = true;
+  this.currentScreen.tabs[this.currentScreen.cursorState.x] = true;
 };
 
 /**
