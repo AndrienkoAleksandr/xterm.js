@@ -74,6 +74,28 @@ interface ICircularList<T> {
   shiftElements(start: number, count: number, offset: number): void;
 }
 
+/**
+ * This interface uses to store information about cursor state when we
+ * switch off from normal screen to VTE alternative screen.
+ */
+export interface CursorState {
+  x: number;
+  y: number;
+}
+/**
+ * This interface uses to store information about screen state when we
+ * * switch off from normal screen to VTE alternative screen.
+ */
+  export interface ScreenState {
+    lines: ICircularList<string>;
+    ybase: number;
+    ydisp: number;
+    cursorState?: CursorState;
+    scrollTop: number;
+    scrollBottom: number;
+    tabs: boolean[];
+  }
+
 export interface LinkMatcherOptions {
   /**
    * The index of the link from the regex.match(text) call. This defaults to 0

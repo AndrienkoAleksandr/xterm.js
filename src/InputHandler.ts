@@ -2,7 +2,7 @@
  * @license MIT
  */
 
-import { IInputHandler, ITerminal } from './Interfaces';
+import {IInputHandler, ITerminal, ScreenState} from './Interfaces';
 import { C0 } from './EscapeSequences';
 import { DEFAULT_CHARSET } from './Charsets';
 
@@ -15,7 +15,49 @@ import { DEFAULT_CHARSET } from './Charsets';
  */
 export class InputHandler implements IInputHandler {
   // TODO: We want to type _terminal when it's pulled into TS
-  constructor(private _terminal: any) { }
+  private normalScreen: ScreenState;
+  private altScreen: ScreenState;
+  private currentScreen: ScreenState;
+
+  constructor(private _terminal: any) {
+    //todo create state factory https://visualstudiomagazine.com/blogs/tool-tracker/2015/12/factory-functions-typescript.aspx
+
+    // this.normalScreen = this.copyCurrentState();
+    // this.altScreen = this.createEmptyState();
+
+    // this.currentScreen = this.normalScreen;
+    this.normalScreen = null;
+  }
+
+  private createEmptyState(): ScreenState {
+    return {
+      lines: null,
+      ybase: 0,
+      ydisp: 0,
+      cursorState: {
+        x: 0,
+        y: 0
+      },
+      scrollBottom: 0,
+      scrollTop: 0,
+      tabs: []
+    };
+  }
+
+  private copyCurrentState(): ScreenState {
+    return {
+      lines: this._terminal.lines,
+      ybase: this._terminal.ybase,
+      ydisp: this._terminal.ydisp,
+      cursorState: {
+        x: this._terminal.x,
+        y: this._terminal.y
+      },
+      scrollBottom: this._terminal.scrollBottom,
+      scrollTop: this._terminal.scrollTop,
+      tabs: this._terminal.tabs
+      }
+  }
 
   public addChar(char: string, code: number): void {
     if (char >= ' ') {
@@ -928,28 +970,14 @@ export class InputHandler implements IInputHandler {
           this._terminal.cursorHidden = false;
           break;
         case 1049: // alt screen buffer cursor
-          // this._terminal.saveCursor();
           ; // FALL-THROUGH
         case 47: // alt screen buffer
         case 1047: // alt screen buffer
-          if (!this._terminal.normal) {
-            let normal = {
-              lines: this._terminal.lines,
-              ybase: this._terminal.ybase,
-              ydisp: this._terminal.ydisp,
-              x: this._terminal.x,
-              y: this._terminal.y,
-              scrollTop: this._terminal.scrollTop,
-              scrollBottom: this._terminal.scrollBottom,
-              tabs: this._terminal.tabs
-              // XXX save charset(s) here?
-              // charset: this._terminal.charset,
-              // glevel: this._terminal.glevel,
-              // charsets: this._terminal.charsets
-            };
+          if (!this.normalScreen) {
+            let normalScreen = this.copyCurrentState();
             this._terminal.reset();
             this._terminal.viewport.syncScrollArea();
-            this._terminal.normal = normal;
+            this.normalScreen = normalScreen;
             this._terminal.showCursor();
           }
           break;
@@ -1111,16 +1139,16 @@ export class InputHandler implements IInputHandler {
           ; // FALL-THROUGH
         case 47: // normal screen buffer
         case 1047: // normal screen buffer - clearing it first
-          if (this._terminal.normal) {
-            this._terminal.lines = this._terminal.normal.lines;
-            this._terminal.ybase = this._terminal.normal.ybase;
-            this._terminal.ydisp = this._terminal.normal.ydisp;
-            this._terminal.x = this._terminal.normal.x;
-            this._terminal.y = this._terminal.normal.y;
-            this._terminal.scrollTop = this._terminal.normal.scrollTop;
-            this._terminal.scrollBottom = this._terminal.normal.scrollBottom;
-            this._terminal.tabs = this._terminal.normal.tabs;
-            this._terminal.normal = null;
+          if (this.normalScreen) {
+            this._terminal.lines = this.normalScreen.lines;
+            this._terminal.ybase = this.normalScreen.ybase;
+            this._terminal.ydisp = this.normalScreen.ydisp;
+            this._terminal.x = this.normalScreen.cursorState.x;
+            this._terminal.y = this.normalScreen.cursorState.y;
+            this._terminal.scrollTop = this.normalScreen.scrollTop;
+            this._terminal.scrollBottom = this.normalScreen.scrollBottom;
+            this._terminal.tabs = this.normalScreen.tabs;
+            this.normalScreen = null;
             // if (params === 1049) {
             //   this.x = this.savedX;
             //   this.y = this.savedY;

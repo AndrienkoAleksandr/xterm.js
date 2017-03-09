@@ -166,7 +166,6 @@ function Terminal(options) {
   this.originMode = false;
   this.insertMode = false;
   this.wraparoundMode = true; // defaults: xterm - true, vt100 - false
-  this.normal = null;
 
   // charset
   this.charset = null;
@@ -207,7 +206,10 @@ function Terminal(options) {
   this.prefix = '';
   this.postfix = '';
 
-  this.inputHandler = new InputHandler(this);
+  if (!this.inputHandler) {
+    this.inputHandler = new InputHandler(this);
+  }
+
   this.parser = new Parser(this.inputHandler, this);
   // Reuse renderer if the Terminal is being recreated via a Terminal.reset call.
   this.renderer = this.renderer || null;
@@ -596,7 +598,6 @@ Terminal.prototype.open = function(parent) {
   this.element.classList.add('xterm-theme-' + this.theme);
   this.element.classList.toggle('xterm-cursor-blink', this.options.cursorBlink);
 
-  this.element.style.height
   this.element.setAttribute('tabindex', 0);
 
   this.viewportElement = document.createElement('div');
@@ -1883,7 +1884,7 @@ Terminal.prototype.resize = function(x, y) {
 
   this.refresh(0, this.rows - 1);
 
-  this.normal = null;
+  this.inputHandler.normalScreen = null;
 
   this.geometry = [this.cols, this.rows];
   this.emit('resize', {terminal: this, cols: x, rows: y});
@@ -2148,9 +2149,11 @@ Terminal.prototype.reverseIndex = function() {
 Terminal.prototype.reset = function() {
   this.options.rows = this.rows;
   this.options.cols = this.cols;
+  var inputHandler = this.inputHandler;
   var customKeydownHandler = this.customKeydownHandler;
   Terminal.call(this, this.options);
   this.customKeydownHandler = customKeydownHandler;
+  this.inputHandler = inputHandler;
   this.refresh(0, this.rows - 1);
   this.viewport.syncScrollArea();
 };
