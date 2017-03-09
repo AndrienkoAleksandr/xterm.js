@@ -15,17 +15,17 @@ import { DEFAULT_CHARSET } from './Charsets';
  */
 export class InputHandler implements IInputHandler {
   // TODO: We want to type _terminal when it's pulled into TS
-  private normalScreen: ScreenState;
-  private altScreen: ScreenState;
-  private currentScreen: ScreenState;
+  normalScreen: ScreenState;//todo think about visibility this fields maybe private or so on
+  altScreen: ScreenState;
+  currentScreen: ScreenState;
 
   constructor(private _terminal: any) {
     //todo create state factory https://visualstudiomagazine.com/blogs/tool-tracker/2015/12/factory-functions-typescript.aspx
 
     // this.normalScreen = this.copyCurrentState();
-    // this.altScreen = this.createEmptyState();
+    this.altScreen = this.createEmptyState();
 
-    // this.currentScreen = this.normalScreen;
+    this.currentScreen = this.normalScreen;
     this.normalScreen = null;
   }
 
@@ -970,12 +970,13 @@ export class InputHandler implements IInputHandler {
           this._terminal.cursorHidden = false;
           break;
         case 1049: // alt screen buffer cursor
+          this.saveCursor(params);
           ; // FALL-THROUGH
         case 47: // alt screen buffer
         case 1047: // alt screen buffer
           if (!this.normalScreen) {
             let normalScreen = this.copyCurrentState();
-            this._terminal.reset();
+            this._terminal.reset();//what a hell???
             this._terminal.viewport.syncScrollArea();
             this.normalScreen = normalScreen;
             this._terminal.showCursor();
@@ -1136,23 +1137,20 @@ export class InputHandler implements IInputHandler {
           this._terminal.cursorHidden = true;
           break;
         case 1049: // alt screen buffer cursor
-          ; // FALL-THROUGH
+          if (this.normalScreen) {
+            this.restoreScreenState();
+            this.normalScreen = null;
+            this._terminal.refresh(0, this._terminal.rows - 1);
+          }
+          this.restoreCursor(params);//seems we need restore cursor any way... and it's a problem
+          this._terminal.viewport.syncScrollArea();
+          this._terminal.showCursor();
+          break;
         case 47: // normal screen buffer
         case 1047: // normal screen buffer - clearing it first
           if (this.normalScreen) {
-            this._terminal.lines = this.normalScreen.lines;
-            this._terminal.ybase = this.normalScreen.ybase;
-            this._terminal.ydisp = this.normalScreen.ydisp;
-            this._terminal.x = this.normalScreen.cursorState.x;
-            this._terminal.y = this.normalScreen.cursorState.y;
-            this._terminal.scrollTop = this.normalScreen.scrollTop;
-            this._terminal.scrollBottom = this.normalScreen.scrollBottom;
-            this._terminal.tabs = this.normalScreen.tabs;
+            this.restoreScreenState();
             this.normalScreen = null;
-            // if (params === 1049) {
-            //   this.x = this.savedX;
-            //   this.y = this.savedY;
-            // }
             this._terminal.refresh(0, this._terminal.rows - 1);
             this._terminal.viewport.syncScrollArea();
             this._terminal.showCursor();
@@ -1160,6 +1158,17 @@ export class InputHandler implements IInputHandler {
           break;
       }
     }
+  }
+
+  private restoreScreenState() {
+    this._terminal.lines = this.normalScreen.lines;
+    this._terminal.ybase = this.normalScreen.ybase;
+    this._terminal.ydisp = this.normalScreen.ydisp;
+    // this._terminal.x = this.normalScreen.cursorState.x;
+    // this._terminal.y = this.normalScreen.cursorState.y;
+    this._terminal.scrollTop = this.normalScreen.scrollTop;
+    this._terminal.scrollBottom = this.normalScreen.scrollBottom;
+    this._terminal.tabs = this.normalScreen.tabs;
   }
 
   /**
