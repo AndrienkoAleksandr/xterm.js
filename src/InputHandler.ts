@@ -1141,10 +1141,11 @@ export class InputHandler implements IInputHandler {
             this.restoreScreenState();
             this.normalScreen = null;
             this._terminal.refresh(0, this._terminal.rows - 1);
+
+            this.restoreCursor(params);//seems we need restore cursor any way... and it's a problem
+            this._terminal.viewport.syncScrollArea();
+            this._terminal.showCursor();
           }
-          this.restoreCursor(params);//seems we need restore cursor any way... and it's a problem
-          this._terminal.viewport.syncScrollArea();
-          this._terminal.showCursor();
           break;
         case 47: // normal screen buffer
         case 1047: // normal screen buffer - clearing it first
