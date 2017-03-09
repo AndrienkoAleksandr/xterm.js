@@ -33,15 +33,15 @@ export class InputHandler implements IInputHandler {
       // FIXME: needs handling after cursor jumps
       if (!ch_width && this._terminal.currentScreen.cursorState.x) {
         // dont overflow left
-        if (this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 1]) {
-          if (!this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 1][2]) {
+        if (this._terminal.currentScreen.lines.get(row)[this._terminal.currentScreen.cursorState.x - 1]) {
+          if (!this._terminal.currentScreen.lines.get(row)[this._terminal.currentScreen.cursorState.x - 1][2]) {
 
             // found empty cell after fullwidth, need to go 2 cells back
-            if (this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 2])
-              this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 2][1] += char;
+            if (this._terminal.currentScreen.lines.get(row)[this._terminal.currentScreen.cursorState.x - 2])
+              this._terminal.currentScreen.lines.get(row)[this._terminal.currentScreen.cursorState.x - 2][1] += char;
 
           } else {
-            this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x - 1][1] += char;
+            this._terminal.currentScreen.lines.get(row)[this._terminal.currentScreen.cursorState.x - 1][1] += char;
           }
           this._terminal.updateRange(this._terminal.currentScreen.cursorState.y);
         }
@@ -72,24 +72,24 @@ export class InputHandler implements IInputHandler {
         for (let moves = 0; moves < ch_width; ++moves) {
           // remove last cell, if it's width is 0
           // we have to adjust the second last cell as well
-          const removed = this._terminal.lines.get(this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase).pop();
+          const removed = this._terminal.currentScreen.lines.get(this._terminal.currentScreen.cursorState.y + this._terminal.currentScreen.ybase).pop();
           if (removed[2] === 0
-              && this._terminal.lines.get(row)[this._terminal.cols - 2]
-          && this._terminal.lines.get(row)[this._terminal.cols - 2][2] === 2)
-            this._terminal.lines.get(row)[this._terminal.cols - 2] = [this._terminal.curAttr, ' ', 1];
+              && this._terminal.currentScreen.lines.get(row)[this._terminal.cols - 2]
+          && this._terminal.currentScreen.lines.get(row)[this._terminal.cols - 2][2] === 2)
+            this._terminal.currentScreen.lines.get(row)[this._terminal.cols - 2] = [this._terminal.curAttr, ' ', 1];
 
           // insert empty cell at cursor
-          this._terminal.lines.get(row).splice(this._terminal.currentScreen.cursorState.x, 0, [this._terminal.curAttr, ' ', 1]);
+          this._terminal.currentScreen.lines.get(row).splice(this._terminal.currentScreen.cursorState.x, 0, [this._terminal.curAttr, ' ', 1]);
         }
       }
 
-      this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x] = [this._terminal.curAttr, char, ch_width];
+      this._terminal.currentScreen.lines.get(row)[this._terminal.currentScreen.cursorState.x] = [this._terminal.curAttr, char, ch_width];
       this._terminal.currentScreen.cursorState.x++;
       this._terminal.updateRange(this._terminal.currentScreen.cursorState.y);
 
       // fullwidth char - set next cell width to zero and advance cursor
       if (ch_width === 2) {
-        this._terminal.lines.get(row)[this._terminal.currentScreen.cursorState.x] = [this._terminal.curAttr, '', 0];
+        this._terminal.currentScreen.lines.get(row)[this._terminal.currentScreen.cursorState.x] = [this._terminal.curAttr, '', 0];
         this._terminal.currentScreen.cursorState.x++;
       }
     }
@@ -188,8 +188,8 @@ export class InputHandler implements IInputHandler {
     ch = [this._terminal.eraseAttr(), ' ', 1]; // xterm
 
     while (param-- && j < this._terminal.cols) {
-      this._terminal.lines.get(row).splice(j++, 0, ch);
-      this._terminal.lines.get(row).pop();
+      this._terminal.currentScreen.lines.get(row).splice(j++, 0, ch);
+      this._terminal.currentScreen.lines.get(row).pop();
     }
   }
 
@@ -432,9 +432,9 @@ export class InputHandler implements IInputHandler {
     j = this._terminal.rows - 1 + this._terminal.ybase - j + 1;
 
     while (param--) {
-      if (this._terminal.lines.length === this._terminal.lines.maxLength) {
+      if (this._terminal.currentScreen.lines.length === this._terminal.currentScreen.lines.maxLength) {
         // Trim the start of lines to make room for the new line
-        this._terminal.lines.trimStart(1);
+        this._terminal.currentScreen.lines.trimStart(1);
         this._terminal.currentScreen.ybase--;
         this._terminal.currentScreen.ydisp--;
         row--;
@@ -442,8 +442,8 @@ export class InputHandler implements IInputHandler {
       }
       // test: echo -e '\e[44m\e[1L\e[0m'
       // blankLine(true) - xterm/linux behavior
-      this._terminal.lines.splice(row, 0, this._terminal.blankLine(true));
-      this._terminal.lines.splice(j, 1);
+      this._terminal.currentScreen.lines.splice(row, 0, this._terminal.blankLine(true));
+      this._terminal.currentScreen.lines.splice(j, 1);
     }
 
     // this.maxRange();
@@ -468,16 +468,16 @@ export class InputHandler implements IInputHandler {
     j = this._terminal.rows - 1 + this._terminal.currentScreen.ybase - j;
 
     while (param--) {
-      if (this._terminal.lines.length === this._terminal.lines.maxLength) {
+      if (this._terminal.currentScreen.lines.length === this._terminal.currentScreen.lines.maxLength) {
         // Trim the start of lines to make room for the new line
-        this._terminal.lines.trimStart(1);
+        this._terminal.currentScreen.lines.trimStart(1);
         this._terminal.currentScreen.ybase -= 1;
         this._terminal.currentScreen.ydisp -= 1;
       }
       // test: echo -e '\e[44m\e[1M\e[0m'
       // blankLine(true) - xterm/linux behavior
-      this._terminal.lines.splice(j + 1, 0, this._terminal.blankLine(true));
-      this._terminal.lines.splice(row, 1);
+      this._terminal.currentScreen.lines.splice(j + 1, 0, this._terminal.blankLine(true));
+      this._terminal.currentScreen.lines.splice(row, 1);
     }
 
     // this.maxRange();
@@ -501,8 +501,8 @@ export class InputHandler implements IInputHandler {
     ch = [this._terminal.eraseAttr(), ' ', 1]; // xterm
 
     while (param--) {
-      this._terminal.lines.get(row).splice(this._terminal.currentScreen.cursorState.x, 1);
-      this._terminal.lines.get(row).push(ch);
+      this._terminal.currentScreen.lines.get(row).splice(this._terminal.currentScreen.cursorState.x, 1);
+      this._terminal.currentScreen.lines.get(row).push(ch);
     }
   }
 
@@ -512,8 +512,8 @@ export class InputHandler implements IInputHandler {
   public scrollUp(params: number[]): void {
     let param = params[0] || 1;
     while (param--) {
-      this._terminal.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollTop, 1);
-      this._terminal.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollBottom, 0, this._terminal.blankLine());
+      this._terminal.currentScreen.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollTop, 1);
+      this._terminal.currentScreen.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollBottom, 0, this._terminal.blankLine());
     }
     // this.maxRange();
     this._terminal.updateRange(this._terminal.currentScreen.scrollTop);
@@ -526,8 +526,8 @@ export class InputHandler implements IInputHandler {
   public scrollDown(params: number[]): void {
     let param = params[0] || 1;
     while (param--) {
-      this._terminal.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollBottom, 1);
-      this._terminal.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollTop, 0, this._terminal.blankLine());
+      this._terminal.currentScreen.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollBottom, 1);
+      this._terminal.currentScreen.lines.splice(this._terminal.currentScreen.ybase + this._terminal.currentScreen.scrollTop, 0, this._terminal.blankLine());
     }
     // this.maxRange();
     this._terminal.updateRange(this._terminal.currentScreen.scrollTop);
@@ -551,7 +551,7 @@ export class InputHandler implements IInputHandler {
     ch = [this._terminal.eraseAttr(), ' ', 1]; // xterm
 
     while (param-- && j < this._terminal.cols) {
-      this._terminal.lines.get(row)[j++] = ch;
+      this._terminal.currentScreen.lines.get(row)[j++] = ch;
     }
   }
 
@@ -601,7 +601,7 @@ export class InputHandler implements IInputHandler {
    */
   public repeatPrecedingCharacter(params: number[]): void {
     let param = params[0] || 1
-      , line = this._terminal.lines.get(this._terminal.currentScreen.ybase + this._terminal.currentScreen.cursorState.y)
+      , line = this._terminal.currentScreen.lines.get(this._terminal.currentScreen.ybase + this._terminal.currentScreen.cursorState.y)
       , ch = line[this._terminal.currentScreen.cursorState.x - 1] || [this._terminal.defAttr, ' ', 1];
 
     while (param--) {
@@ -996,7 +996,6 @@ export class InputHandler implements IInputHandler {
    * Restore normal screen. Do we need save alternative screen?
    */
   private restoreScreenState(screenBuffer: ScreenState) {
-    this._terminal.lines = screenBuffer.lines;
 
     // this._terminal.refresh(0, this._terminal.rows - 1);
     // this._terminal.viewport.syncScrollArea();

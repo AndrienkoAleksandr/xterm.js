@@ -214,15 +214,17 @@ function Terminal(options) {
    * An array of all lines in the entire buffer, including the prompt. The lines are array of
    * characters which are 2-length arrays where [0] is an attribute and [1] is the character.
    */
-  this.lines = new CircularList(this.scrollback);
+  var lines = new CircularList(this.scrollback);
+  var altScreenLines = new CircularList(this.rows);//todo think about it scrollBack or rows
   var i = this.rows;
   while (i--) {
-    this.lines.push(this.blankLine());
+    lines.push(this.blankLine());
+    altScreenLines.push(this.blankLine());
   }
 
   //todo need method to create empty states.
   this.normal = {
-    lines: this.lines,
+    lines: lines,
     ybase: 0,
     ydisp: 0,
     cursorState: {
@@ -234,12 +236,6 @@ function Terminal(options) {
     tabs: []
   };
   this.currentScreen = this.normal;
-
-  var altScreenLines = new CircularList(this.rows);//todo think about it scrollBack or rows
-  var count = this.rows;
-  while (count--) {
-    altScreenLines.push(this.blankLine());
-  }
 
   this.altScreen = {
     lines: altScreenLines,
@@ -418,17 +414,17 @@ Terminal.prototype.setOption = function(key, value) {
   switch (key) {
     case 'scrollback':
       if (this.options[key] !== value) {
-        if (this.lines.length > value) {
-          const amountToTrim = this.lines.length - value;
+        if (this.currentScreen.lines.length > value) {
+          const amountToTrim = this.currentScreen.lines.length - value;
           const needsRefresh = (this.currentScreen.ydisp - amountToTrim < 0);
-          this.lines.trimStart(amountToTrim);
+          this.currentScreen.lines.trimStart(amountToTrim);
           this.currentScreen.ybase = Math.max(this.currentScreen.ybase - amountToTrim, 0);
           this.currentScreen.ydisp = Math.max(this.currentScreen.ydisp - amountToTrim, 0);
           if (needsRefresh) {
             this.refresh(0, this.rows - 1);
           }
         }
-        this.lines.maxLength = value;
+        this.currentScreen.lines.maxLength = value;
         this.viewport.syncScrollArea();
       }
       break;
@@ -1111,8 +1107,8 @@ Terminal.prototype.scroll = function() {
   var row;
 
   // Make room for the new row in lines
-  if (this.lines.length === this.lines.maxLength) {
-    this.lines.trimStart(1);
+  if (this.currentScreen.lines.length === this.currentScreen.lines.maxLength) {
+    this.currentScreen.lines.trimStart(1);
     this.currentScreen.ybase--;
     if (this.currentScreen.ydisp !== 0) {
       this.currentScreen.ydisp--;
@@ -1132,12 +1128,12 @@ Terminal.prototype.scroll = function() {
   // subtract the bottom scroll region
   row -= this.rows - 1 - this.currentScreen.scrollBottom;
 
-  if (row === this.lines.length) {
+  if (row === this.currentScreen.lines.length) {
     // Optimization: pushing is faster than splicing when they amount to the same behavior
-    this.lines.push(this.blankLine());
+    this.currentScreen.lines.push(this.blankLine());
   } else {
     // add our new line
-    this.lines.splice(row, 0, this.blankLine());
+    this.currentScreen.lines.splice(row, 0, this.blankLine());
   }
 
   if (this.currentScreen.scrollTop !== 0) {//do we need separate object scrollState?
@@ -1147,7 +1143,7 @@ Terminal.prototype.scroll = function() {
         this.currentScreen.ydisp = this.currentScreen.ybase;
       }
     }
-    this.lines.splice(this.currentScreen.ybase + this.currentScreen.scrollTop, 1);
+    this.currentScreen.lines.splice(this.currentScreen.ybase + this.currentScreen.scrollTop, 1);
   }
 
   // this.maxRange();
@@ -1791,6 +1787,7 @@ Terminal.prototype.error = function() {
  * @param {number} x The number of columns to resize to.
  * @param {number} y The number of rows to resize to.
  */
+//todo need rework this method
 Terminal.prototype.resize = function(x, y) {
   if (isNaN(x) || isNaN(y)) {
     return;
@@ -1814,17 +1811,17 @@ Terminal.prototype.resize = function(x, y) {
   j = this.cols;
   if (j < x) {
     ch = [this.defAttr, ' ', 1]; // does xterm use the default attr?
-    i = this.lines.length;
+    i = this.currentScreen.lines.length;
     while (i--) {
-      while (this.lines.get(i).length < x) {
-        this.lines.get(i).push(ch);
+      while (this.currentScreen.lines.get(i).length < x) {
+        this.currentScreen.lines.get(i).push(ch);
       }
     }
   } else { // (j > x)
-    i = this.lines.length;
+    i = this.currentScreen.lines.length;
     while (i--) {
-      while (this.lines.get(i).length > x) {
-        this.lines.get(i).pop();
+      while (this.currentScreen.lines.get(i).length > x) {
+        this.currentScreen.lines.get(i).pop();
       }
     }
   }
@@ -1838,8 +1835,8 @@ Terminal.prototype.resize = function(x, y) {
     el = this.element;
     while (j++ < y) {
       // y is rows, not this.currentScreen.cursorState.y
-      if (this.lines.length < y + this.currentScreen.ybase) {
-        if (this.currentScreen.ybase > 0 && this.lines.length <= this.currentScreen.ybase + this.currentScreen.cursorState.y + addToY + 1) {
+      if (this.currentScreen.lines.length < y + this.currentScreen.ybase) {
+        if (this.currentScreen.ybase > 0 && this.currentScreen.lines.length <= this.currentScreen.ybase + this.currentScreen.cursorState.y + addToY + 1) {
           // There is room above the buffer and there are no empty elements below the line,
           // scroll up
           this.currentScreen.ybase--;
@@ -1851,7 +1848,7 @@ Terminal.prototype.resize = function(x, y) {
         } else {
           // Add a blank line if there is no buffer left at the top to scroll to, or if there
           // are blank lines after the cursor
-          this.lines.push(this.blankLine());
+          this.currentScreen.lines.push(this.blankLine());
         }
       }
       if (this.children.length < y) {
@@ -1860,10 +1857,10 @@ Terminal.prototype.resize = function(x, y) {
     }
   } else { // (j > y)
     while (j-- > y) {
-      if (this.lines.length > y + this.currentScreen.ybase) {
-        if (this.lines.length > this.currentScreen.ybase + this.currentScreen.cursorState.y + 1) {
+      if (this.currentScreen.lines.length > y + this.currentScreen.ybase) {
+        if (this.currentScreen.lines.length > this.currentScreen.ybase + this.currentScreen.cursorState.y + 1) {
           // The line is a blank line below the cursor, remove it
-          this.lines.pop();
+          this.currentScreen.lines.pop();
         } else {
           // The line is the cursor, scroll down
           this.currentScreen.ybase++;
@@ -1979,7 +1976,7 @@ Terminal.prototype.nextStop = function(x) {
  * @param {number} y The line in which to operate.
  */
 Terminal.prototype.eraseRight = function(x, y) {
-  var line = this.lines.get(this.currentScreen.ybase + y);
+  var line = this.currentScreen.lines.get(this.currentScreen.ybase + y);
   if (!line) {
     return;
   }
@@ -1998,7 +1995,7 @@ Terminal.prototype.eraseRight = function(x, y) {
  * @param {number} y The line in which to operate.
  */
 Terminal.prototype.eraseLeft = function(x, y) {
-  var line = this.lines.get(this.currentScreen.ybase + y);
+  var line = this.currentScreen.lines.get(this.currentScreen.ybase + y);
   if (!line) {
     return;
   }
@@ -2018,13 +2015,13 @@ Terminal.prototype.clear = function() {
     // Don't clear if it's already clear
     return;
   }
-  this.lines.set(0, this.lines.get(this.currentScreen.ybase + this.currentScreen.cursorState.y));
-  this.lines.length = 1;
+  this.currentScreen.lines.set(0, this.currentScreen.lines.get(this.currentScreen.ybase + this.currentScreen.cursorState.y));
+  this.currentScreen.lines.length = 1;
   this.currentScreen.ydisp = 0;
   this.currentScreen.ybase = 0;
   this.currentScreen.cursorState.y = 0;
   for (var i = 1; i < this.rows; i++) {
-    this.lines.push(this.blankLine());
+    this.currentScreen.lines.push(this.blankLine());
   }
   this.refresh(0, this.rows - 1);
   this.emit('scroll', this.currentScreen.ydisp);
@@ -2145,8 +2142,8 @@ Terminal.prototype.reverseIndex = function() {
     // possibly move the code below to term.reverseScroll();
     // test: echo -ne '\e[1;1H\e[44m\eM\e[0m'
     // blankLine(true) is xterm/linux behavior
-    this.lines.shiftElements(this.currentScreen.cursorState.y + this.currentScreen.ybase, this.rows - 1, 1);
-    this.lines.set(this.currentScreen.cursorState.y + this.currentScreen.ybase, this.blankLine(true));
+    this.currentScreen.lines.shiftElements(this.currentScreen.cursorState.y + this.currentScreen.ybase, this.rows - 1, 1);
+    this.currentScreen.lines.set(this.currentScreen.cursorState.y + this.currentScreen.ybase, this.blankLine(true));
     this.updateRange(this.currentScreen.scrollTop);
     this.updateRange(this.currentScreen.scrollBottom);
   } else {

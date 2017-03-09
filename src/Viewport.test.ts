@@ -13,9 +13,9 @@ describe('Viewport', () => {
   beforeEach(() => {
     terminal = {
       currentScreen : {
-        ydisp: 0
+        ydisp: 0,
+        lines: [],
       },
-      lines: [],
       rows: 0,
       on: () => {},
       rowContainer: {
@@ -56,8 +56,8 @@ describe('Viewport', () => {
       }, 0);
     });
     it('should set the height of the viewport when the line-height changed', () => {
-      terminal.lines.push('');
-      terminal.lines.push('');
+      terminal.currentScreen.lines.push('');
+      terminal.currentScreen.lines.push('');
       terminal.rows = 1;
       viewport.refresh();
       assert.equal(viewportElement.style.height, 1 * CHARACTER_HEIGHT + 'px');
@@ -71,13 +71,13 @@ describe('Viewport', () => {
     it('should sync the scroll area', done => {
       // Allow CharMeasure to be initialized
       setTimeout(() => {
-        terminal.lines.push('');
+        terminal.currentScreen.lines.push('');
         terminal.rows = 1;
         assert.equal(scrollAreaElement.style.height, 0 * CHARACTER_HEIGHT + 'px');
         viewport.syncScrollArea();
         assert.equal(viewportElement.style.height, 1 * CHARACTER_HEIGHT + 'px');
         assert.equal(scrollAreaElement.style.height, 1 * CHARACTER_HEIGHT + 'px');
-        terminal.lines.push('');
+        terminal.currentScreen.lines.push('');
         viewport.syncScrollArea();
         assert.equal(viewportElement.style.height, 1 * CHARACTER_HEIGHT + 'px');
         assert.equal(scrollAreaElement.style.height, 2 * CHARACTER_HEIGHT + 'px');

@@ -138,7 +138,7 @@ export class Renderer {
     for (; y <= end; y++) {
       row = y + this._terminal.currentScreen.ydisp;
 
-      line = this._terminal.lines.get(row);
+      line = this._terminal.currentScreen.lines.get(row);
       if (!line || !this._terminal.children[y]) {
         // Continue if the line is not available, this means a resize is currently in progress
         continue;
