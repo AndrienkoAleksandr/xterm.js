@@ -1305,7 +1305,6 @@ Terminal.prototype.attachHypertextLinkHandler = function(handler) {
   this.refresh(0, this.rows - 1);
 }
 
-
 /**
    * Registers a link matcher, allowing custom link patterns to be matched and
    * handled.
