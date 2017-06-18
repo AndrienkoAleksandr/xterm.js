@@ -936,8 +936,8 @@ export class InputHandler implements IInputHandler {
           this._terminal.cursorHidden = false;
           break;
         case 1049: // alt screen buffer cursor
-          // this._terminal.saveCursor();
-          ; // FALL-THROUGH
+          this.saveCursor(params);
+          // FALL-THROUGH
         case 47: // alt screen buffer
         case 1047: // alt screen buffer
           if (!this._terminal.normal) {
@@ -1132,10 +1132,11 @@ export class InputHandler implements IInputHandler {
             this._terminal.normal = null;
             // Ensure the selection manager has the correct buffer
             this._terminal.selectionManager.setBuffer(this._terminal.lines);
-            // if (params === 1049) {
-            //   this.x = this.savedX;
-            //   this.y = this.savedY;
-            // }
+
+            if (params[0] === 1049) {
+              this.restoreCursor(params);
+            }
+
             this._terminal.refresh(0, this._terminal.rows - 1);
             this._terminal.viewport.syncScrollArea();
             this._terminal.showCursor();
@@ -1468,8 +1469,13 @@ export class InputHandler implements IInputHandler {
    *   Save cursor (ANSI.SYS).
    */
   public saveCursor(params: number[]): void {
-    this._terminal.savedX = this._terminal.x;
-    this._terminal.savedY = this._terminal.y;
+    if (this._terminal.normal) {
+      this._terminal.savedX = this._terminal.x;
+      this._terminal.savedY = this._terminal.y;
+    } else {
+      this._terminal.savedAltX = this._terminal.x;
+      this._terminal.savedAltY = this._terminal.y;
+    }
   }
 
 
@@ -1477,9 +1483,15 @@ export class InputHandler implements IInputHandler {
    * CSI u
    *   Restore cursor (ANSI.SYS).
    */
+  // todo Fix max cursor position
   public restoreCursor(params: number[]): void {
-    this._terminal.x = this._terminal.savedX || 0;
-    this._terminal.y = this._terminal.savedY || 0;
+    if (this._terminal.normal) {
+      this._terminal.x = this._terminal.savedX || 0;
+      this._terminal.y = this._terminal.savedY || 0;
+    } else {
+      this._terminal.x = this._terminal.savedAltX || 0;
+      this._terminal.y = this._terminal.savedAltY || 0;
+    }
   }
 }
 
