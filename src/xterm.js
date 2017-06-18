@@ -1963,7 +1963,7 @@ Terminal.prototype.resize = function(x, y) {
 
   this.refresh(0, this.rows - 1);
 
-  this.normal = null;
+  // this.normal = null; todo we need delete this one
 
   this.geometry = [this.cols, this.rows];
   this.emit('resize', {terminal: this, cols: x, rows: y});

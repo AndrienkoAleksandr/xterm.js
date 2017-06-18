@@ -942,20 +942,7 @@ export class InputHandler implements IInputHandler {
         case 47: // alt screen buffer
         case 1047: // alt screen buffer
           if (!this._terminal.normal) {
-            let normal = {
-              lines: this._terminal.lines,
-              ybase: this._terminal.ybase,
-              ydisp: this._terminal.ydisp,
-              x: this._terminal.x,
-              y: this._terminal.y,
-              scrollTop: this._terminal.scrollTop,
-              scrollBottom: this._terminal.scrollBottom,
-              tabs: this._terminal.tabs
-              // XXX save charset(s) here?
-              // charset: this._terminal.charset,
-              // glevel: this._terminal.glevel,
-              // charsets: this._terminal.charsets
-            };
+            let normal = this.saveState();
             this._terminal.reset();
             this._terminal.viewport.syncScrollArea();
             this._terminal.normal = normal;
@@ -964,6 +951,23 @@ export class InputHandler implements IInputHandler {
           break;
       }
     }
+  }
+
+  private saveState(): any {
+    return {
+      lines: this._terminal.lines,
+      ybase: this._terminal.ybase,
+      ydisp: this._terminal.ydisp,
+      x: this._terminal.x,
+      y: this._terminal.y,
+      scrollTop: this._terminal.scrollTop,
+      scrollBottom: this._terminal.scrollBottom,
+      tabs: this._terminal.tabs
+      // XXX save charset(s) here?
+      // charset: this._terminal.charset,
+      // glevel: this._terminal.glevel,
+      // charsets: this._terminal.charsets
+    };
   }
 
   /**
