@@ -3,6 +3,7 @@
  */
 
 import { IInputHandler, ITerminal } from './Interfaces';
+import {clamp} from './utils/Generic';
 import { C0 } from './EscapeSequences';
 import { DEFAULT_CHARSET } from './Charsets';
 
@@ -1487,10 +1488,10 @@ export class InputHandler implements IInputHandler {
   public restoreCursor(params: number[]): void {
     if (this._terminal.normal) {
       this._terminal.x = this._terminal.savedX || 0;
-      this._terminal.y = this._terminal.savedY || 0;
+      this._terminal.y = clamp(this._terminal.savedY, 0, this._terminal.rows - 1);
     } else {
       this._terminal.x = this._terminal.savedAltX || 0;
-      this._terminal.y = this._terminal.savedAltY || 0;
+      this._terminal.y = clamp(this._terminal.savedAltY, 0, this._terminal.rows - 1);
     }
   }
 }
