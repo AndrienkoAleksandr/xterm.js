@@ -12,29 +12,29 @@ const sourcemaps = require('gulp-sourcemaps');
 const ts = require('gulp-typescript');
 
 
-let buildDir = process.env.BUILD_DIR || 'build';
-let tsProject = ts.createProject('tsconfig.json');
-let srcDir = tsProject.config.compilerOptions.rootDir;
-let outDir = tsProject.config.compilerOptions.outDir;
+var buildDir = process.env.BUILD_DIR || 'build';
+var tsProject = ts.createProject('tsconfig.json');
+var srcDir = tsProject.config.compilerOptions.rootDir;
+var outDir = tsProject.config.compilerOptions.outDir;
 
 /**
  * Compile TypeScript sources to JavaScript files and create a source map file for each TypeScript
  * file compiled.
  */
 gulp.task('tsc', function () {
-  // Remove the ${outDir}/ directory to prevent confusion if files were deleted in ${srcDir}/
+  // Remove the ${outDir}/ directory to prevent confusion if files were devared in ${srcDir}/
   fs.emptyDirSync(`${outDir}`);
 
   // Build all TypeScript files (including tests) to ${outDir}/, based on the configuration defined in
   // `tsconfig.json`.
-  let tsResult = tsProject.src().pipe(sourcemaps.init()).pipe(tsProject());
-  let tsc = tsResult.js.pipe(sourcemaps.write('.', {includeContent: false, sourceRoot: ''})).pipe(gulp.dest(outDir));
+  var tsResult = tsProject.src().pipe(sourcemaps.init()).pipe(tsProject());
+  var tsc = tsResult.js.pipe(sourcemaps.write('.', {includeContent: false, sourceRoot: ''})).pipe(gulp.dest(outDir));
 
   // Copy all addons from ${srcDir}/ to ${outDir}/
-  let copyAddons = gulp.src(`${srcDir}/addons/**/*`).pipe(gulp.dest(`${outDir}/addons`));
+  var copyAddons = gulp.src(`${srcDir}/addons/**/*`).pipe(gulp.dest(`${outDir}/addons`));
 
   // Copy stylesheets from ${srcDir}/ to ${outDir}/
-  let copyStylesheets = gulp.src(`${srcDir}/**/*.css`).pipe(gulp.dest(outDir));
+  var copyStylesheets = gulp.src(`${srcDir}/**/*.css`).pipe(gulp.dest(outDir));
 
   return merge(tsc, copyAddons, copyStylesheets);
 });
@@ -47,7 +47,7 @@ gulp.task('browserify', ['tsc'], function() {
   // Ensure that the build directory exists
   fs.ensureDirSync(buildDir);
 
-  let browserifyOptions = {
+  var browserifyOptions = {
     basedir: buildDir,
     debug: true,
     entries: [`../${outDir}/xterm.js`],
@@ -55,7 +55,7 @@ gulp.task('browserify', ['tsc'], function() {
     cache: {},
     packageCache: {}
   };
-  let bundleStream = browserify(browserifyOptions)
+  var bundleStream = browserify(browserifyOptions)
         .bundle()
         .pipe(source('xterm.js'))
         .pipe(buffer())
@@ -64,10 +64,10 @@ gulp.task('browserify', ['tsc'], function() {
         .pipe(gulp.dest(buildDir));
 
   // Copy all add-ons from ${outDir}/ to buildDir
-  let copyAddons = gulp.src(`${outDir}/addons/**/*`).pipe(gulp.dest(`${buildDir}/addons`));
+  var copyAddons = gulp.src(`${outDir}/addons/**/*`).pipe(gulp.dest(`${buildDir}/addons`));
 
   // Copy stylesheets from ${outDir}/ to ${buildDir}/
-  let copyStylesheets = gulp.src(`${outDir}/**/*.css`).pipe(gulp.dest(buildDir));
+  var copyStylesheets = gulp.src(`${outDir}/**/*.css`).pipe(gulp.dest(buildDir));
 
   return merge(bundleStream, copyAddons, copyStylesheets);
 });
