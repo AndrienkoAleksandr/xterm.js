@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+    <head>
+        <title>xterm.js demo</title>
+        <link rel="stylesheet" href="../build/xterm.css" />
+        <link rel="stylesheet" href="../build/addons/fullscreen/fullscreen.css" />
+        <link rel="stylesheet" href="./style.css" />
+      	<script src="https://cdnjs.cloudflare.com/ajax/libs/fetch/1.0.0/fetch.min.js"></script>
+        <script src="../build/xterm.js" ></script>
+        <script src="../build/addons/attach/attach.js" ></script>
+        <script src="../build/addons/fit/fit.js" ></script>
+        <script src="../build/addons/fullscreen/fullscreen.js" ></script>
+
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/3.0.3/normalize.css">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.css">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/styles/github.min.css">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.8.0/highlight.min.js"></script>
+      <script src="./split-1.2.0.js"></script>
+    </head>
+    <body>
+        <h6><b>xterm.js embedded to the resize panel</b></h6>
+        <div id="parent-container">
+          <div id="left" class="split split-horizontal">
+            <div id="top"><p>Top content</p></div>
+            <div id="bottom">
+              <div id="terminal-container"></div>
+            </div>
+          </div>
+          <div id="right" class="split split-horizontal"></div>
+        </div>
+        <script src="main.js" defer ></script>
+    </body>
+</html>

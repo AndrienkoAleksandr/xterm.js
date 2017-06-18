@@ -68,6 +68,7 @@
   "scripts": {
     "prestart": "npm run build",
     "start": "node demo/app",
+    "start2": "./resizeWithoutScrolInAltBufflDemo/che-websocket-terminal",
     "dev": "nodemon -e js,ts,css --watch src --watch demo --exec npm start",
     "lint": "tslint src/*.ts src/**/*.ts",
     "test": "gulp test",
