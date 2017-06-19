@@ -158,6 +158,7 @@ export class CircularList<T> extends EventEmitter {
     this.emit('trim', count);
   }
 
+  // todo should be here doc
   public shiftElements(start: number, count: number, offset: number): void {
     if (count <= 0) {
       return;

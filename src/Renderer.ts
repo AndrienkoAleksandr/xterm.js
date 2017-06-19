@@ -7,7 +7,7 @@ import { DomElementObjectPool } from './utils/DomElementObjectPool';
 
 /**
  * The maximum number of refresh frames to skip when the write buffer is non-
- * empty. Note that these frames may be intermingled with frames that are
+ * emptyN. Note that these frames may be intermingled with frames that are
  * skipped via requestAnimationFrame's mechanism.
  */
 const MAX_REFRESH_FRAME_SKIP = 5;
@@ -130,7 +130,7 @@ export class Renderer {
       }
     }
 
-    let width = this._terminal.cols;
+    let width = this._terminal.cols; // todo maybe here should be check to maybe here
     let y = start;
 
     if (end >= this._terminal.rows) {
@@ -167,7 +167,7 @@ export class Renderer {
 
       for (let i = 0; i < width; i++) {
         // TODO: Could data be a more specific type?
-        let data: any = line[i][0];
+        let data: any = line[i][0]; // exception here !!!!!
         const ch = line[i][1];
         const ch_width: any = line[i][2];
         if (!ch_width) {

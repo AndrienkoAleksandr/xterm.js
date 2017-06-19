@@ -10,6 +10,7 @@ const sorcery = require('sorcery');
 const source = require('vinyl-source-stream');
 const sourcemaps = require('gulp-sourcemaps');
 const ts = require('gulp-typescript');
+const util = require('gulp-util');
 
 
 var buildDir = process.env.BUILD_DIR || 'build';
@@ -85,6 +86,19 @@ gulp.task('mocha', ['instrument-test'], function () {
       .pipe(mocha())
       .once('error', () => process.exit(1))
       .pipe(istanbul.writeReports());
+});
+
+/**
+ * Run single file with tests by file name without file extention. Example of the command:
+ * gulp mocha-test --test "InputHandler.test"
+ */
+gulp.task('mocha-test', ['instrument-test'], function () {
+  var testName = util.env.test;
+  util.log("Run test by Name: " + testName + ".js");
+  return gulp.src([`${outDir}/${testName}.js`, `${outDir}/**/${testName}.js`], {read: false})
+      .pipe(mocha())
+      .once('error', () => process.exit(1))
+  .pipe(istanbul.writeReports());
 });
 
 /**

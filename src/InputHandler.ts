@@ -6,6 +6,8 @@ import { IInputHandler, ITerminal } from './Interfaces';
 import {clamp} from './utils/Generic';
 import { C0 } from './EscapeSequences';
 import { DEFAULT_CHARSET } from './Charsets';
+import {ICircularList} from './Interfaces';
+import {isUndefined} from "util";
 
 /**
  * The terminal's standard implementation of IInputHandler, this handles all
@@ -1126,9 +1128,20 @@ export class InputHandler implements IInputHandler {
         case 47: // normal screen buffer
         case 1047: // normal screen buffer - clearing it first
           if (this._terminal.normal) {
+            let diff: number = this.calculateDiff(this._terminal.normal.lines);
+            let newYbase: number = this._terminal.normal.ybase; // begin from previous value
+            let newYdisp: number = this._terminal.normal.ydisp;
+
+            if (this._terminal.rows > this._terminal.lines) { // todo what is >==
+              newYbase = newYdisp = 0;
+              // cursor position is the the same
+            }
+
+            console.log('diff = ' + diff + ' ybase ' + newYbase + ' ydisp ' + newYdisp);
+
             this._terminal.lines = this._terminal.normal.lines;
-            this._terminal.ybase = this._terminal.normal.ybase;
-            this._terminal.ydisp = this._terminal.normal.ydisp;
+            this._terminal.ybase = newYbase;
+            this._terminal.ydisp = newYdisp;
             this._terminal.x = this._terminal.normal.x;
             this._terminal.y = this._terminal.normal.y;
             this._terminal.scrollTop = this._terminal.normal.scrollTop;
@@ -1497,6 +1510,22 @@ export class InputHandler implements IInputHandler {
       this._terminal.x = this._terminal.savedAltX || 0;
       this._terminal.y = clamp(this._terminal.savedAltY, 0, this._terminal.rows - 1);
     }
+  }
+
+  // todo I am not sure about this method location...
+  public calculateDiff(lines: ICircularList<string>): number {
+    let length = lines.length;
+    let diff: number = length;
+
+    // todo maybe we need have reverse forEach in the CircularList.ts?
+    for (let i = length - 1; i >= 0; i--) {
+      if (lines.get(i)) {
+        diff = length - i - 1;
+        break;
+      }
+    }
+
+    return diff;
   }
 }
 
