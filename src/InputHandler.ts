@@ -1154,8 +1154,17 @@ export class InputHandler implements IInputHandler {
                 newYbase = 0;
               }
 
-              // let newLength: number = this._terminal.normal.lines.length - this._terminal.rows;
-              // this._terminal.normal.lines = this._terminal.normal.lines.shiftElements(0, newLength - 1, 0); // todo maybe splice here ?
+              let contentSize: number = this._terminal.normal.lines.length - diff;
+              let cutLines: number;
+
+              if (contentSize > this._terminal.rows) {
+                cutLines = diff;
+              } else {
+                cutLines = diff - (this._terminal.rows - contentSize);
+              }
+
+              let newLength: number = this._terminal.normal.lines.length - cutLines;
+              this._terminal.normal.lines = this._terminal.normal.lines.splice(newLength, this._terminal.normal.lines.length - 1); // todo maybe splice here ?
             }
 
             console.log('diff = ' + diff + ' ybase ' + newYbase + ' ydisp ' + newYdisp);
