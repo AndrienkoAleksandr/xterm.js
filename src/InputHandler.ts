@@ -1129,12 +1129,33 @@ export class InputHandler implements IInputHandler {
         case 1047: // normal screen buffer - clearing it first
           if (this._terminal.normal) {
             let diff: number = this.calculateDiff(this._terminal.normal.lines);
+            // console.log(this._terminal.normal.lines.get(this._terminal.normal.lines.length));
+            console.log('lines length ' +  this._terminal.normal.lines.length);
+            console.log('diff ' + diff);
+            console.log('ybase ' + this._terminal.normal.ybase);
+
             let newYbase: number = this._terminal.normal.ybase; // begin from previous value
             let newYdisp: number = this._terminal.normal.ydisp;
 
-            if (this._terminal.rows > this._terminal.lines) { // todo what is >==
+            if (this._terminal.rows >= this._terminal.normal.lines.length) { // todo what is >==
+
               newYbase = newYdisp = 0;
+
+              let blankLinesToRender: number = this._terminal.rows - this._terminal.normal.lines.length;
+              for (let i = 1; i <= blankLinesToRender; i++) {
+                let blankLine = this._terminal.blankLine(null, false);
+                this._terminal.normal.lines.push(blankLine);
+              }
               // cursor position is the the same
+            } else {
+              newYbase = this._terminal.normal.lines.length - this._terminal.rows - diff;
+
+              if (newYbase < 0) {
+                newYbase = 0;
+              }
+
+              // let newLength: number = this._terminal.normal.lines.length - this._terminal.rows;
+              // this._terminal.normal.lines = this._terminal.normal.lines.shiftElements(0, newLength - 1, 0); // todo maybe splice here ?
             }
 
             console.log('diff = ' + diff + ' ybase ' + newYbase + ' ydisp ' + newYdisp);
@@ -1513,19 +1534,29 @@ export class InputHandler implements IInputHandler {
   }
 
   // todo I am not sure about this method location...
-  public calculateDiff(lines: ICircularList<string>): number {
+  private calculateDiff(lines: ICircularList<string>): number {
     let length = lines.length;
     let diff: number = length;
 
     // todo maybe we need have reverse forEach in the CircularList.ts?
     for (let i = length - 1; i >= 0; i--) {
-      if (lines.get(i)) {
+      if (!this.isEmptyLine(lines.get(i))) {
         diff = length - i - 1;
         break;
       }
     }
 
     return diff;
+  }
+
+  private isEmptyLine(line: any): boolean { // type should not "any"
+    for (let i = 0; i < line.length; i++) {
+      let charArray = line[i];
+      if (charArray[1] !== ' ') { // think about surrogate pair
+        return false;
+      }
+    }
+    return true;
   }
 }
 

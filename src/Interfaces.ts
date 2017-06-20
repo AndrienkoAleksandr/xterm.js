@@ -48,6 +48,7 @@ export interface ITerminal {
   cancel(ev: Event, force?: boolean);
   log(text: string): void;
   emit(event: string, data: any);
+  blankLine(cur: any, isWrapped: boolean); // todo cur should be some array
 }
 
 export interface ISelectionManager {

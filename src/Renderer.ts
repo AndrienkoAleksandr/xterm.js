@@ -166,7 +166,6 @@ export class Renderer {
       }
 
       for (let i = 0; i < width; i++) {
-        // TODO: Could data be a more specific type?
         let data: any = line[i][0]; // exception here !!!!!
         const ch = line[i][1];
         const ch_width: any = line[i][2];
