@@ -4,6 +4,7 @@
 
 import { LinkMatcherOptions } from './Interfaces';
 import { LinkMatcherHandler, LinkMatcherValidationCallback } from './Types';
+import {BufferSet} from './BufferSet';
 
 export interface IBrowser {
   isNode: boolean;
@@ -39,7 +40,7 @@ export interface ITerminal {
   defAttr: number; // todo hmm... check maybe it should be moved to the buffer and restored after switching from alt buffer to normal buffer(and otherwise) => 1047, 47, 1049 in the InputHandler!!!!? We need to find testcases to check this stuff, maybe it's will fixes some bugs with background colors or so on.
   scrollback: number;
   // buffer and viewport @parisk changes. I need it.
-  buffer: any;  // This should be a `Buffer` class, but it would result in circular dependency
+  buffers: BufferSet; // This should be a `Buffer` class, but it would result in circular dependency
   // Todo we need think about it. Seems Alt buffer doesn't use scroll(in the xterm.js we uses ViewPort for alt screen, but I believe it's a mistake, which produces hard bugs.), so I'm not sure that we need scrollPort for alt buffer at all... But we exactly need it for normal buffer... Maybe this field should not be in the buffer and we need stay it in the ITerminal.
   viewport: any;
 
@@ -57,6 +58,7 @@ export interface ITerminal {
   // reset() and showCursor() @parisk changes. I need it.
   reset(): void;
   showCursor(): void;
+  refresh(start: number, end: number);
 }
 
 export interface ISelectionManager {
@@ -76,7 +78,7 @@ export interface ILinkifier {
   deregisterLinkMatcher(matcherId: number): boolean;
 }
 
-interface ICircularList<T> {
+export interface ICircularList<T> {
   length: number;
   maxLength: number;
 

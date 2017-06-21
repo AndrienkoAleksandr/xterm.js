@@ -6,8 +6,9 @@ import { IInputHandler, ITerminal } from './Interfaces';
 import {clamp} from './utils/Generic';
 import { C0 } from './EscapeSequences';
 import { DEFAULT_CHARSET } from './Charsets';
-import {ICircularList} from './Interfaces';
-import {isUndefined} from "util";
+import { ICircularList } from './Interfaces';
+import { isUndefined } from 'util';
+import { Buffer } from './Buffer';
 
 /**
  * The terminal's standard implementation of IInputHandler, this handles all
@@ -943,33 +944,27 @@ export class InputHandler implements IInputHandler {
           // FALL-THROUGH
         case 47: // alt screen buffer
         case 1047: // alt screen buffer
-          if (!this._terminal.normal) {
-            let normal = this.saveState();
-            this._terminal.reset();
-            this._terminal.viewport.syncScrollArea();
-            this._terminal.normal = normal;
-            this._terminal.showCursor();
-          }
-          break;
+            this.saveState(this._terminal.buffers.normal); // todo maybe active ?
+            this._terminal.buffers.activateAltBuffer();
+            break;
       }
     }
   }
 
-  private saveState(): any {
-    return {
-      lines: this._terminal.lines,
-      ybase: this._terminal.ybase,
-      ydisp: this._terminal.ydisp,
-      x: this._terminal.x,
-      y: this._terminal.y,
-      scrollTop: this._terminal.scrollTop,
-      scrollBottom: this._terminal.scrollBottom,
-      tabs: this._terminal.tabs
-      // XXX save charset(s) here?
-      // charset: this._terminal.charset,
-      // glevel: this._terminal.glevel,
-      // charsets: this._terminal.charsets
-    };
+  // Todo this method created temporary
+  private saveState(buffer: Buffer): void {
+      buffer.lines = this._terminal.lines;
+      buffer.ybase = this._terminal.ybase;
+      buffer.ydisp = this._terminal.ydisp;
+      buffer.x = this._terminal.x;
+      buffer.y = this._terminal.y;
+      buffer.scrollTop = this._terminal.scrollTop;
+      buffer.scrollBottom = this._terminal.scrollBottom;
+      buffer.tabs = this._terminal.tabs;
+      // // XXX save charset(s) here?
+      // // charset: this._terminal.charset, // todo
+      // // glevel: this._terminal.glevel, // todo what is the glevel ?
+      // // charsets: this._terminal.charsets // todo
   }
 
   /**
@@ -1127,30 +1122,30 @@ export class InputHandler implements IInputHandler {
           ; // FALL-THROUGH
         case 47: // normal screen buffer
         case 1047: // normal screen buffer - clearing it first
-          if (this._terminal.normal) {
-            let diff: number = this.calculateDiff(this._terminal.normal.lines);
+          if (this._terminal.buffers.active = this._terminal.buffers.normal) {
+            let diff: number = this.calculateDiff(this._terminal.buffers.normal.lines);
 
-            let newYbase: number = this._terminal.normal.ybase; // begin from previous value
-            let newYdisp: number = this._terminal.normal.ydisp;
+            let newYbase: number = this._terminal.buffers.normal.ybase; // begin from previous value
+            let newYdisp: number = this._terminal.buffers.normal.ydisp;
 
-            if (this._terminal.rows >= this._terminal.normal.lines.length) { // todo what is >==
+            if (this._terminal.rows >= this._terminal.buffers.normal.lines.length) { // todo what is >==
 
               newYbase = newYdisp = 0;
 
               let blankLinesToRender: number = this._terminal.rows - this._terminal.normal.lines.length;
               for (let i = 1; i <= blankLinesToRender; i++) { // todo try to "shiftElements" and element to shift will be blank line...
                 let blankLine = this._terminal.blankLine(null, false);
-                this._terminal.normal.lines.push(blankLine);
+                this._terminal.buffers.normal.lines.push(blankLine);
               }
               // cursor position is the the same
             } else {
-              newYbase = this._terminal.normal.lines.length - this._terminal.rows - diff;
+              newYbase = this._terminal.buffers.normal.lines.length - this._terminal.rows - diff;
 
               if (newYbase < 0) {
                 newYbase = 0;
               }
 
-              let contentSize: number = this._terminal.normal.lines.length - diff;
+              let contentSize: number = this._terminal.buffers.normal.lines.length - diff;
               let cutLines: number;
 
               if (contentSize > this._terminal.rows) {
@@ -1159,33 +1154,28 @@ export class InputHandler implements IInputHandler {
                 cutLines = diff - (this._terminal.rows - contentSize);
               }
 
-              this._terminal.normal.lines.trimEnd(cutLines);
+              this._terminal.buffers.normal.lines.trimEnd(cutLines);
             }
 
             console.log('diff = ' + diff + ' ybase ' + newYbase + ' ydisp ' + newYdisp);
 
-            this._terminal.lines = this._terminal.normal.lines;
+            this._terminal.lines = this._terminal.buffers.normal.lines;
             this._terminal.ybase = newYbase;
             this._terminal.ydisp = newYdisp;
-            this._terminal.x = this._terminal.normal.x;
-            this._terminal.y = this._terminal.normal.y;
-            this._terminal.scrollTop = this._terminal.normal.scrollTop;
-            this._terminal.scrollBottom = this._terminal.normal.scrollBottom;
-            this._terminal.tabs = this._terminal.normal.tabs;
+            this._terminal.x = this._terminal.buffers.normal.x;
+            this._terminal.y = this._terminal.buffers.normal.y;
+            this._terminal.scrollTop = this._terminal.buffers.normal.scrollTop;
+            this._terminal.scrollBottom = this._terminal.buffers.normal.scrollBottom;
+            this._terminal.tabs = this._terminal.buffers.normal.tabs;
 
             this._terminal.diff = diff;
             // Ensure the selection manager has the correct buffer
-            this._terminal.selectionManager.setBuffer(this._terminal.lines);
+            this._terminal.selectionManager.setBuffer(this._terminal.buffers.active.lines);
 
             if (params[0] === 1049) {
               this.restoreCursor(params);
             }
-            this._terminal.normal = null;
-
-            this._terminal.refresh(0, this._terminal.rows - 1);
-            this._terminal.viewport.syncScrollArea();
-            this._terminal.showCursor();
-
+            this._terminal.buffers.activateNormalBuffer();
           }
           break;
       }
@@ -1515,6 +1505,8 @@ export class InputHandler implements IInputHandler {
    *   Save cursor (ANSI.SYS).
    */
   public saveCursor(params: number[]): void {
+    // todo this._terminal.buffers.active.x = this._terminal.x;
+    this._terminal.buffers.active.y = this._terminal.y;
     if (this._terminal.normal) {
       this._terminal.savedX = this._terminal.x;
       this._terminal.savedY = this._terminal.y;
@@ -1531,16 +1523,16 @@ export class InputHandler implements IInputHandler {
    */
   // todo Fix max cursor position
   public restoreCursor(params: number[]): void {
-    if (this._terminal.normal) {
+    // if (this._terminal.normal) {
       this._terminal.x = this._terminal.savedX || 0;
       let y: number = this._terminal.savedY || 0;
       let deltaYbase = this._terminal.normal.ybase - this._terminal.ybase;
       y = y - deltaYbase - 1;
       this._terminal.y = clamp(y, 0, this._terminal.rows - 1);
-    } else {
-      this._terminal.x = this._terminal.savedAltX || 0;
-      this._terminal.y = clamp(this._terminal.savedAltY, 0, this._terminal.rows - 1);
-    }
+    // } else {
+    //   this._terminal.x = this._terminal.savedAltX || 0;
+    //   this._terminal.y = clamp(this._terminal.savedAltY, 0, this._terminal.rows - 1);
+    // }
   }
 
   // todo I am not sure about this method location...

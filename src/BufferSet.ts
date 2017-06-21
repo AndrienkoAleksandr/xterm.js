@@ -40,7 +40,8 @@ export class BufferSet extends EventEmitter {
 
   public activateNormalBuffer(): void {
     this._activeBuffer = this._normal;
-    this.resetTerminal();
+    // Todo maybe like want @parisk: this.resetTerminal(); //check it
+    this._terminal.refresh(0, this._terminal.rows - 1);
     this.emit('activate', this._normal);
   }
 

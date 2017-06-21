@@ -177,7 +177,6 @@ function Terminal(options) {
   this.originMode = false;
   this.insertMode = false;
   this.wraparoundMode = true; // defaults: xterm - true, vt100 - false
-  this.normal = null;
 
   // charset
   this.charset = null;
@@ -1125,7 +1124,7 @@ Terminal.prototype.showCursor = function() {
 Terminal.prototype.scroll = function(isWrapped) {
   var row;
 
-  if (this.normal) {
+  if (this.buffers.active === this.buffers.alt) {
     return;
   }
 
@@ -1913,7 +1912,7 @@ Terminal.prototype.resize = function(x, y) {
         if (this.ybase > 0 && this.lines.length <= this.ybase + this.y + addToY + 1) {
           // There is room above the buffer and there are no empty elements below the line,
           // scroll up
-          if (!this.normal) {
+          if (this.buffers.active !== this.buffers.alt) {
             this.ybase--;
             addToY++;
           }// todo
@@ -1939,7 +1938,7 @@ Terminal.prototype.resize = function(x, y) {
           this.lines.pop();
         } else {
           // The line is the cursor, scroll down
-          if (!this.normal) {
+          if (this.buffers.active !== this.buffers.alt) {
             this.ybase++;
             this.ydisp++;
           }
@@ -1972,8 +1971,6 @@ Terminal.prototype.resize = function(x, y) {
   this.charMeasure.measure();
 
   this.refresh(0, this.rows - 1);
-
-  // this.normal = null; todo we need delete this one
 
   this.geometry = [this.cols, this.rows];
   this.emit('resize', {terminal: this, cols: x, rows: y});
