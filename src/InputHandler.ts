@@ -1129,10 +1129,6 @@ export class InputHandler implements IInputHandler {
         case 1047: // normal screen buffer - clearing it first
           if (this._terminal.normal) {
             let diff: number = this.calculateDiff(this._terminal.normal.lines);
-            // console.log(this._terminal.normal.lines.get(this._terminal.normal.lines.length));
-            console.log('lines length ' +  this._terminal.normal.lines.length);
-            console.log('diff ' + diff);
-            console.log('ybase ' + this._terminal.normal.ybase);
 
             let newYbase: number = this._terminal.normal.ybase; // begin from previous value
             let newYdisp: number = this._terminal.normal.ydisp;
@@ -1142,7 +1138,7 @@ export class InputHandler implements IInputHandler {
               newYbase = newYdisp = 0;
 
               let blankLinesToRender: number = this._terminal.rows - this._terminal.normal.lines.length;
-              for (let i = 1; i <= blankLinesToRender; i++) {
+              for (let i = 1; i <= blankLinesToRender; i++) { // todo try to "shiftElements" and element to shift will be blank line...
                 let blankLine = this._terminal.blankLine(null, false);
                 this._terminal.normal.lines.push(blankLine);
               }
@@ -1163,8 +1159,7 @@ export class InputHandler implements IInputHandler {
                 cutLines = diff - (this._terminal.rows - contentSize);
               }
 
-              let newLength: number = this._terminal.normal.lines.length - cutLines;
-              this._terminal.normal.lines = this._terminal.normal.lines.splice(newLength, this._terminal.normal.lines.length - 1); // todo maybe splice here ?
+              this._terminal.normal.lines.trimEnd(cutLines);
             }
 
             console.log('diff = ' + diff + ' ybase ' + newYbase + ' ydisp ' + newYdisp);
@@ -1177,17 +1172,20 @@ export class InputHandler implements IInputHandler {
             this._terminal.scrollTop = this._terminal.normal.scrollTop;
             this._terminal.scrollBottom = this._terminal.normal.scrollBottom;
             this._terminal.tabs = this._terminal.normal.tabs;
-            this._terminal.normal = null;
+
+            this._terminal.diff = diff;
             // Ensure the selection manager has the correct buffer
             this._terminal.selectionManager.setBuffer(this._terminal.lines);
 
             if (params[0] === 1049) {
               this.restoreCursor(params);
             }
+            this._terminal.normal = null;
 
             this._terminal.refresh(0, this._terminal.rows - 1);
             this._terminal.viewport.syncScrollArea();
             this._terminal.showCursor();
+
           }
           break;
       }
@@ -1535,7 +1533,10 @@ export class InputHandler implements IInputHandler {
   public restoreCursor(params: number[]): void {
     if (this._terminal.normal) {
       this._terminal.x = this._terminal.savedX || 0;
-      this._terminal.y = clamp(this._terminal.savedY, 0, this._terminal.rows - 1);
+      let y: number = this._terminal.savedY || 0;
+      let deltaYbase = this._terminal.normal.ybase - this._terminal.ybase;
+      y = y - deltaYbase - 1;
+      this._terminal.y = clamp(y, 0, this._terminal.rows - 1);
     } else {
       this._terminal.x = this._terminal.savedAltX || 0;
       this._terminal.y = clamp(this._terminal.savedAltY, 0, this._terminal.rows - 1);
@@ -1543,7 +1544,7 @@ export class InputHandler implements IInputHandler {
   }
 
   // todo I am not sure about this method location...
-  private calculateDiff(lines: ICircularList<string>): number {
+  public calculateDiff(lines: ICircularList<string>): number { // for testing public?
     let length = lines.length;
     let diff: number = length;
 

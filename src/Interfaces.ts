@@ -29,6 +29,7 @@ export interface ITerminal {
   lines: ICircularList<string>;
   rows: number;
   cols: number;
+  diff: number;
   browser: IBrowser;
   writeBuffer: string[];
   children: HTMLElement[];
@@ -79,6 +80,7 @@ interface ICircularList<T> {
   pop(): T;
   splice(start: number, deleteCount: number, ...items: T[]): void;
   trimStart(count: number): void;
+  trimEnd(count: number): void;
   shiftElements(start: number, count: number, offset: number): void;
 }
 

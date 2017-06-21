@@ -2,6 +2,7 @@ import {assert} from 'chai';
 import {InputHandler} from './InputHandler';
 import {ITerminal} from './Interfaces';
 import {CircularList} from './utils/CircularList';
+import {log} from "util";
 
 describe('InputHandler', () => {
   describe('setCursorStyle', () => {
@@ -144,6 +145,24 @@ describe('InputHandler', () => {
       terminal.lines.push('');
 
       assert.equal(inputHandler.calculateDiff(terminal.lines), 1);
+    });
+  });
+
+  it('calculate diff when terminal lines consist of empty lines in the middle and in the end of the lines', () => {
+    let terminal: ITerminal;
+    let rowsSize: number;
+    rowsSize = 5;
+    terminal = <any>{cols: 10, rows: rowsSize, lines: new CircularList(rowsSize) };
+
+    terminal.lines.push('first line');
+    terminal.lines.push('second line');
+    terminal.lines.push('third line');
+    terminal.lines.push('fourth line');
+    terminal.lines.push('fifth line');
+
+   terminal.lines.trimEnd(1);
+    terminal.lines.forEach(function (element) {
+      log(element);
     });
   });
 });
