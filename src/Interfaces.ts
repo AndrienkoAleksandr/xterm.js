@@ -23,22 +23,25 @@ export interface ITerminal {
   selectionContainer: HTMLElement;
   charMeasure: ICharMeasure;
   textarea: HTMLTextAreaElement;
-  ybase: number;
-  ydisp: number;
-  normal: any;
-  lines: ICircularList<string>;
+  ybase: number; // Todo should be deleted from here, because it will be used from buffer. @parisk part
+  ydisp: number; // Todo should be deleted from here, because it will be used from buffer. @parisk part
+  lines: ICircularList<string>; // Todo should be moved to buffer at all!!! @parisk part
   rows: number;
   cols: number;
-  diff: number;
+  diff: number; // todo should be calculated and moved to the buffer, but how!!!!!
   browser: IBrowser;
   writeBuffer: string[];
   children: HTMLElement[];
-  cursorHidden: boolean;
-  cursorState: number;
+  cursorHidden: boolean; // todo seems should be moved to the buffer and restored after switching from alt buffer to normal buffer(and otherwise) => 1047, 47, 1049 in the InputHandler!!!!
+  cursorState: number; // todo seems should be moved to the buffer  and restored after switching from alt buffer to normal buffer(and otherwise) => 1047, 47, 1049 in the InputHandler!!!!
   x: number;
   y: number;
-  defAttr: number;
+  defAttr: number; // todo hmm... check maybe it should be moved to the buffer and restored after switching from alt buffer to normal buffer(and otherwise) => 1047, 47, 1049 in the InputHandler!!!!? We need to find testcases to check this stuff, maybe it's will fixes some bugs with background colors or so on.
   scrollback: number;
+  // buffer and viewport @parisk changes. I need it.
+  buffer: any;  // This should be a `Buffer` class, but it would result in circular dependency
+  // Todo we need think about it. Seems Alt buffer doesn't use scroll(in the xterm.js we uses ViewPort for alt screen, but I believe it's a mistake, which produces hard bugs.), so I'm not sure that we need scrollPort for alt buffer at all... But we exactly need it for normal buffer... Maybe this field should not be in the buffer and we need stay it in the ITerminal.
+  viewport: any;
 
   /**
    * Emit the 'data' event and populate the given data.
@@ -51,6 +54,9 @@ export interface ITerminal {
   log(text: string): void;
   emit(event: string, data: any);
   blankLine(cur: any, isWrapped: boolean); // todo cur should be some array
+  // reset() and showCursor() @parisk changes. I need it.
+  reset(): void;
+  showCursor(): void;
 }
 
 export interface ISelectionManager {
