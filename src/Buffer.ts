@@ -35,11 +35,11 @@ export class Buffer {
   }
 
   public set ybase(ybase: number) {
-    this.ybase = ybase;
+    this._ybase = ybase;
   }
 
   public get ydisp(): number {
-    return this.ydisp;
+    return this._ydisp;
   }
 
   public set ydisp(ydisp: number) {
@@ -59,7 +59,7 @@ export class Buffer {
   }
 
   public set x(x: number) {
-    this.x = x;
+    this._x = x;
   }
 
   public get y(): number {
@@ -67,7 +67,7 @@ export class Buffer {
   }
 
   public set y(y: number) {
-    this.y = y;
+    this._y = y;
   }
 
   public get scrollTop(): number {

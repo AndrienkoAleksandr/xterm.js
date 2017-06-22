@@ -32,22 +32,25 @@ export class BufferSet extends EventEmitter {
     return this._normal;
   }
 
-  private resetTerminal() {
-    this._terminal.reset();
-    this._terminal.viewport.syncScrollArea();
-    this._terminal.showCursor();
-  }
-
   public activateNormalBuffer(): void {
     this._activeBuffer = this._normal;
-    // Todo maybe like want @parisk: this.resetTerminal(); //check it
+
     this._terminal.refresh(0, this._terminal.rows - 1);
+    // this._terminal.viewport.syncScrollArea();
+    // this._terminal.showCursor();
+
     this.emit('activate', this._normal);
   }
 
-  public activateAltBuffer(): void {
-    this._activeBuffer = this._normal;
-    this.resetTerminal();
-    this.emit('activate', this._normal);
+  public activateAltBuffer(doClear: boolean): void {
+    this._activeBuffer = this._alt;
+
+    if (doClear) {
+      this._terminal.reset();
+    }
+    this._terminal.viewport.syncScrollArea(); // Todo I'm not sure that we need it for alt buffer
+    this._terminal.showCursor();
+
+    this.emit('activate', this._alt);
   }
 }
