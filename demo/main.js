@@ -6,29 +6,28 @@ var term,
     charWidth,
     charHeight;
 
+Split(['#left', '#right'], {
+  direction: 'horizontal',
+  sizes: [50, 50],
+  minSize: 1
+});
+
+Split(['#top', '#bottom'], {
+  direction: 'vertical',
+  sizes: [50, 50],
+  minSize: 1
+});
+
 var terminalContainer = document.getElementById('terminal-container'),
+    verticalResizer = document.getElementsByClassName('gutter gutter-vertical')[0],
+    horizontalResizer = document.getElementsByClassName('gutter gutter-horizontal')[0],
+    rightPanel = document.getElementById("right"),
     optionElements = {
       cursorBlink: document.querySelector('#option-cursor-blink'),
       cursorStyle: document.querySelector('#option-cursor-style'),
       scrollback: document.querySelector('#option-scrollback'),
       tabstopwidth: document.querySelector('#option-tabstopwidth')
-    },
-    colsElement = document.getElementById('cols'),
-    rowsElement = document.getElementById('rows');
-
-function setTerminalSize () {
-  var cols = parseInt(colsElement.value, 10),
-      rows = parseInt(rowsElement.value, 10),
-      width = (cols * charWidth).toString() + 'px',
-      height = (rows * charHeight).toString() + 'px';
-
-  terminalContainer.style.width = width;
-  terminalContainer.style.height = height;
-  term.resize(cols, rows);
-}
-
-colsElement.addEventListener('change', setTerminalSize);
-rowsElement.addEventListener('change', setTerminalSize);
+    };
 
 optionElements.cursorBlink.addEventListener('change', function () {
   term.setOption('cursorBlink', optionElements.cursorBlink.checked);
@@ -42,6 +41,36 @@ optionElements.scrollback.addEventListener('change', function () {
 optionElements.tabstopwidth.addEventListener('change', function () {
   term.setOption('tabStopWidth', parseInt(optionElements.tabstopwidth.value, 10));
 });
+
+function resize() {
+  verticalResizer.addEventListener('mousedown', initResize, false);
+  horizontalResizer.addEventListener('mousedown', initResize, false);
+
+  function initResize(e) {
+    window.addEventListener('mousemove', Resize, false);
+    window.addEventListener('mouseup', stopResize, false);
+  }
+
+  function Resize(e) {
+    terminalContainer.style.width = terminalContainer.parentNode.parentElement.width;
+    terminalContainer.style.height = terminalContainer.parentNode.parentElement.height;
+    console.log(terminalContainer.style.width);
+    resizeTerminal();
+  }
+
+  function stopResize(e) {
+    window.removeEventListener('mousemove', Resize, false);
+    window.removeEventListener('mouseup', stopResize, false);
+  }
+}
+resize();
+
+function resizeTerminal() {
+  var initialGeometry = term.proposeGeometry(),
+    cols = initialGeometry.cols,
+    rows = initialGeometry.rows;
+  term.resize(cols, rows);
+}
 
 createTerminal();
 
@@ -75,13 +104,7 @@ function createTerminal() {
       cols = initialGeometry.cols,
       rows = initialGeometry.rows;
 
-  colsElement.value = cols;
-  rowsElement.value = rows;
-
   fetch('/terminals?cols=' + cols + '&rows=' + rows, {method: 'POST'}).then(function (res) {
-
-    charWidth = Math.ceil(term.element.offsetWidth / cols);
-    charHeight = Math.ceil(term.element.offsetHeight / rows);
 
     res.text().then(function (pid) {
       window.pid = pid;
@@ -97,7 +120,7 @@ function createTerminal() {
 function runRealTerminal() {
   term.attach(socket);
   term._initialized = true;
-}
+};
 
 function runFakeTerminal() {
   if (term._initialized) {
@@ -123,9 +146,9 @@ function runFakeTerminal() {
       !ev.altKey && !ev.altGraphKey && !ev.ctrlKey && !ev.metaKey
     );
 
-    if (ev.keyCode == 13) {
+    if (ev.keyCode === 13) {
       term.prompt();
-    } else if (ev.keyCode == 8) {
+    } else if (ev.keyCode === 8) {
      // Do not delete the prompt
       if (term.x > 2) {
         term.write('\b \b');
