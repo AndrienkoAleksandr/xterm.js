@@ -84,6 +84,9 @@ function createTerminal() {
     scrollback: parseInt(optionElements.scrollback.value, 10),
     tabStopWidth: parseInt(optionElements.tabstopwidth.value, 10)
   });
+
+  createTerminalInfoTools(term, rightPanel);
+
   term.on('resize', function (size) {
     if (!pid) {
       return;
@@ -120,7 +123,7 @@ function createTerminal() {
 function runRealTerminal() {
   term.attach(socket);
   term._initialized = true;
-};
+}
 
 function runFakeTerminal() {
   if (term._initialized) {
@@ -161,4 +164,93 @@ function runFakeTerminal() {
   term.on('paste', function (data, ev) {
     term.write(data);
   });
+}
+
+function createTerminalInfoTools(terminal, panel) {
+  var rowsElem = createDisplayElement("Amount of rows:", function (ev) {
+    terminal.rows = this.value;
+  });
+  panel.appendChild(rowsElem.view);
+
+  var colsElem = createDisplayElement("Amount of cols:", function (ev) {
+    terminal.cols = this.value;
+  });
+  panel.appendChild(colsElem.view);
+
+  var ydispElem = createDisplayElement("Ydisp:", function (ev) {
+    terminal.buffer.ydisp = this.value;
+  });
+  panel.appendChild(ydispElem.view);
+
+  var yBaseElem = createDisplayElement("Ybase:", function (ev) {
+    terminal.buffer.ybase = this.value;
+  });
+  panel.appendChild(yBaseElem.view);
+
+  var scrollTopElem = createDisplayElement("ScrollTop:", function (ev) {
+    terminal.buffer.scrollTop = this.value;
+  });
+  panel.appendChild(scrollTopElem.view);
+
+  var xElem = createDisplayElement("X:", function (ev) {
+    terminal.buffer.x = this.value;
+  });
+  panel.appendChild(xElem.view);
+
+  var yElem = createDisplayElement("Y:", function (ev) {
+    terminal.buffer.y = this.value;
+  });
+  panel.appendChild(yElem.view);
+
+  var linesElem = createDisplayElement("Lines length:", function (ev) {
+  });
+  panel.appendChild(linesElem.view);
+
+  setInterval(function () {
+    rowsElem.valueElem.innerHTML = terminal.rows.toString();
+    colsElem.valueElem.innerHTML = terminal.cols.toString();
+    ydispElem.valueElem.innerHTML = terminal.buffer.ydisp.toString();
+    yBaseElem.valueElem.innerHTML = terminal.buffer.ybase.toString();
+    scrollTopElem.valueElem.innerHTML = terminal.buffer.scrollTop.toString();
+    xElem.valueElem.innerHTML = terminal.buffer.x.toString();
+    yElem.valueElem.innerHTML = terminal.buffer.y.toString();
+    linesElem.valueElem.innerHTML = terminal.buffer.lines.length.toString();
+  }, 500);
+
+  var resizeButton = addResizeButton(terminal);
+  resizeButton.className = "resize-button";
+  rightPanel.appendChild(resizeButton);
+}
+
+function createDisplayElement(title, func) {
+  var parentElem = document.createElement("div");
+
+  //inner content
+  var titleElement = document.createElement("span");
+  titleElement.innerHTML = title;
+  var valueElement = document.createElement("span");
+  valueElement.classList = 'value-disp';
+
+  var inputElement = document.createElement("input");
+  inputElement.className = "term-disp";
+  inputElement.type = "number";
+
+  inputElement.addEventListener("change", func);
+
+  parentElem.appendChild(titleElement);
+  parentElem.appendChild(valueElement);
+  parentElem.appendChild(inputElement);
+
+  parentElem.className = "elem";
+
+  return {view: parentElem, valueElem: valueElement};
+}
+
+function addResizeButton(terminal) {
+  var button = document.createElement("button");
+  button.innerHTML = "Force resize";
+  button.addEventListener("click", function () {
+    terminal.resize();
+  });
+  return button;
 }
