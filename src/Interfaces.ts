@@ -4,6 +4,7 @@
 
 import { LinkMatcherOptions } from './Interfaces';
 import { LinkMatcherHandler, LinkMatcherValidationCallback } from './Types';
+import {BufferSet} from './BufferSet';
 
 export interface IBrowser {
   isNode: boolean;
@@ -32,7 +33,7 @@ export interface ITerminal {
   cursorState: number;
   defAttr: number;
   scrollback: number;
-  buffers: any;  // This should be a `BufferSet` class, but it would result in circular dependency
+  buffers: BufferSet;
   buffer: any;  // This should be a `Buffer` class, but it would result in circular dependency
   viewport: any;  // This should be a `Viewport` class, but it would result in circular dependency
 
@@ -67,7 +68,7 @@ export interface ILinkifier {
   deregisterLinkMatcher(matcherId: number): boolean;
 }
 
-interface ICircularList<T> {
+export interface ICircularList<T> {
   length: number;
   maxLength: number;
 
@@ -78,6 +79,7 @@ interface ICircularList<T> {
   pop(): T;
   splice(start: number, deleteCount: number, ...items: T[]): void;
   trimStart(count: number): void;
+  trimEnd(count: number): void;
   shiftElements(start: number, count: number, offset: number): void;
 }
 

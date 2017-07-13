@@ -52,6 +52,12 @@ export class Viewport {
         this.viewportElement.style.lineHeight = this.charMeasure.height + 'px';
         this.terminal.rowContainer.style.lineHeight = this.charMeasure.height + 'px';
       }
+      if (this.terminal.buffers.active === this.terminal.buffers.alt) {
+        let height = this.charMeasure.height * this.terminal.rows + 'px';
+        this.viewportElement.style.height = height;
+        this.scrollArea.style.height = height;
+        return;
+      }
       const viewportHeightChanged = this.lastRecordedViewportHeight !== this.terminal.rows;
       if (rowHeightChanged || viewportHeightChanged) {
         this.lastRecordedViewportHeight = this.terminal.rows;

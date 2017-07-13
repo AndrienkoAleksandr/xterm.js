@@ -178,8 +178,6 @@ function Terminal(options) {
   this.children;
   this.refreshStart;
   this.refreshEnd;
-  this.savedX;
-  this.savedY;
   this.savedCols;
 
   // stream
@@ -1152,6 +1150,10 @@ Terminal.prototype.showCursor = function() {
 Terminal.prototype.scroll = function(isWrapped) {
   var row;
 
+  if (this.buffers.active === this.buffers.alt) { //todo maybe it's mistake...
+    return;
+  }
+
   // Make room for the new row in lines
   if (this.buffer.lines.length === this.buffer.lines.maxLength) {
     this.buffer.lines.trimStart(1);
@@ -1956,8 +1958,10 @@ Terminal.prototype.resize = function(x, y) {
         if (this.buffer.ybase > 0 && this.buffer.lines.length <= this.buffer.ybase + this.buffer.y + addToY + 1) {
           // There is room above the buffer and there are no empty elements below the line,
           // scroll up
-          this.buffer.ybase--;
-          addToY++;
+          if (this.buffers.active !== this.buffers.alt) {
+            this.ybase--;
+            addToY++;
+          }
           if (this.buffer.ydisp > 0) {
             // Viewport is at the top of the buffer, must increase downwards
             this.buffer.ydisp--;
@@ -1980,8 +1984,10 @@ Terminal.prototype.resize = function(x, y) {
           this.buffer.lines.pop();
         } else {
           // The line is the cursor, scroll down
-          this.buffer.ybase++;
-          this.buffer.ydisp++;
+          if (this.buffers.active !== this.buffers.alt) {
+            this.buffer.ybase++;
+            this.buffer.ydisp++;
+          }
         }
       }
       if (this.children.length > y) {

@@ -2,7 +2,7 @@
  * @license MIT
  */
 
-import { IInputHandler, ITerminal } from './Interfaces';
+import {ICircularList, IInputHandler, ITerminal} from './Interfaces';
 import { C0 } from './EscapeSequences';
 import { DEFAULT_CHARSET } from './Charsets';
 
@@ -1110,6 +1110,46 @@ export class InputHandler implements IInputHandler {
         case 1047: // normal screen buffer - clearing it first
           // Ensure the selection manager has the correct buffer
           this._terminal.buffers.activateNormalBuffer();
+
+          // restore normal screen
+          let diff: number = this.calculateDiff(this._terminal.buffers.normal.lines);
+
+          let newYbase: number = this._terminal.buffers.normal.ybase; // begin from previous value
+          let newYdisp: number = this._terminal.buffers.normal.ydisp;
+
+          if (this._terminal.rows >= this._terminal.buffers.normal.lines.length) { // todo what is >=
+
+            newYbase = newYdisp = 0;
+
+            let blankLinesToRender: number = this._terminal.rows - this._terminal.buffers.normal.lines.length;
+            for (let i = 1; i <= blankLinesToRender; i++) { // todo try to use "shiftElements" and element to shift will be blank line...
+              let blankLine = this._terminal.blankLine(null, false);
+              this._terminal.buffers.normal.lines.push(blankLine);
+            }
+          } else { // cursor position is the the same
+            newYbase = this._terminal.buffers.normal.lines.length - this._terminal.rows - diff;
+
+            if (newYbase < 0) {
+              newYbase = 0;
+            }
+
+            let contentSize: number = this._terminal.buffers.normal.lines.length - diff;
+            let cutLines: number;
+
+            if (contentSize > this._terminal.rows) {
+              cutLines = diff;
+            } else {
+              cutLines = diff - (this._terminal.rows - contentSize);
+            }
+
+            this._terminal.buffers.normal.lines.trimEnd(cutLines);
+          }
+
+          console.log('diff = ' + diff + ' ybase ' + newYbase + ' ydisp ' + newYdisp);
+          this._terminal.buffers.normal.ybase = newYbase;
+          this._terminal.buffers._normal.ydisp = newYdisp;
+          // this._terminal.diff = diff; // :)
+
           if (params[0] === 1049) {
             this.restoreCursor(params);
           }
@@ -1458,6 +1498,33 @@ export class InputHandler implements IInputHandler {
     this._terminal.buffer.x = this._terminal.buffers.active.x || 0;
     this._terminal.buffer.y = this._terminal.buffers.active.y || 0;
   }
+
+// todo I am not sure about this method location...
+  public calculateDiff(lines: ICircularList<string>): number { // for testing public?
+    let length = lines.length;
+    let diff: number = length;
+
+    // todo maybe we need have reverse forEach in the CircularList.ts?
+      for (let i = length - 1; i >= 0; i--) {
+      if (!this.isEmptyLine(lines.get(i))) {
+          diff = length - i - 1;
+          break;
+        }
+    }
+
+    return diff;
+  }
+
+  private isEmptyLine(line: any): boolean { // type should not "any"
+    for (let i = 0; i < line.length; i++) {
+      let charArray = line[i];
+      if (charArray[1] !== ' ') { // think about surrogate pair
+          return false;
+        }
+    }
+    return true;
+  }
+
 }
 
 const wcwidth = (function(opts) {

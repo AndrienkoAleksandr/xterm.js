@@ -12,3 +12,12 @@
 export function contains(arr: any[], el: any) {
   return arr.indexOf(el) >= 0;
 };
+
+export function clamp(value: number, min: number, max: number) {
+  if (value < min) {
+    value = min;
+  } else if (value > max) {
+    value = max;
+  }
+  return value;
+}
