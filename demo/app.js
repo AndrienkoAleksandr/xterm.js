@@ -21,6 +21,10 @@ app.get('/main.js', function(req, res){
   res.sendFile(__dirname + '/main.js');
 });
 
+app.get('/logo.png', function(req, res){
+  res.sendFile(__dirname + '/logo.png');
+});
+
 app.post('/terminals', function (req, res) {
   var cols = parseInt(req.query.cols),
       rows = parseInt(req.query.rows),
