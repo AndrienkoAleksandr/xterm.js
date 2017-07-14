@@ -2,9 +2,7 @@ var term,
     protocol,
     socketURL,
     socket,
-    pid,
-    charWidth,
-    charHeight;
+    pid;
 
 Split(['#left', '#right'], {
   direction: 'horizontal',
@@ -22,12 +20,29 @@ var terminalContainer = document.getElementById('terminal-container'),
     verticalResizer = document.getElementsByClassName('gutter gutter-vertical')[0],
     horizontalResizer = document.getElementsByClassName('gutter gutter-horizontal')[0],
     rightPanel = document.getElementById("right"),
+    actionElements = {
+      findNext: document.querySelector('#find-next'),
+      findPrevious: document.querySelector('#find-previous')
+    },
     optionElements = {
       cursorBlink: document.querySelector('#option-cursor-blink'),
       cursorStyle: document.querySelector('#option-cursor-style'),
       scrollback: document.querySelector('#option-scrollback'),
       tabstopwidth: document.querySelector('#option-tabstopwidth')
     };
+
+actionElements.findNext.addEventListener('keypress', function (e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    term.findNext(actionElements.findNext.value);
+  }
+});
+actionElements.findPrevious.addEventListener('keypress', function (e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    term.findPrevious(actionElements.findPrevious.value);
+  }
+});
 
 optionElements.cursorBlink.addEventListener('change', function () {
   term.setOption('cursorBlink', optionElements.cursorBlink.checked);

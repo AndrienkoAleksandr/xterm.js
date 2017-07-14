@@ -2,7 +2,7 @@
  * @license MIT
  */
 
-import {ICircularList, IInputHandler, ITerminal} from './Interfaces';
+import { IInputHandler, ITerminal } from './Interfaces';
 import { C0 } from './EscapeSequences';
 import { DEFAULT_CHARSET } from './Charsets';
 
@@ -396,6 +396,8 @@ export class InputHandler implements IInputHandler {
           this._terminal.buffer.lines.trimStart(scrollBackSize);
           this._terminal.buffer.ybase = Math.max(this._terminal.buffer.ybase - scrollBackSize, 0);
           this._terminal.buffer.ydisp = Math.max(this._terminal.buffer.ydisp - scrollBackSize, 0);
+          // Force a scroll event to refresh viewport
+          this._terminal.emit('scroll', 0);
         }
         break;
     }

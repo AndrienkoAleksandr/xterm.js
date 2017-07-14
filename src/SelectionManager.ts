@@ -9,6 +9,7 @@ import { CircularList } from './utils/CircularList';
 import { EventEmitter } from './EventEmitter';
 import { ITerminal } from './Interfaces';
 import { SelectionModel } from './SelectionModel';
+import { translateBufferLineToString } from './utils/BufferLine';
 
 /**
  * The number of pixels the mouse needs to be above or below the viewport in
@@ -87,23 +88,6 @@ export class SelectionManager extends EventEmitter {
   private _dragScrollAmount: number;
 
   /**
-   * The last time the mousedown event fired, this is used to track double and
-   * triple clicks.
-   */
-  private _lastMouseDownTime: number;
-
-  /**
-   * The last position the mouse was clicked [x, y].
-   */
-  private _lastMousePosition: [number, number];
-
-  /**
-   * The number of clicks of the mousedown event. This is used to keep track of
-   * double and triple clicks.
-   */
-  private _clickCount: number;
-
-  /**
    * The current selection mode.
    */
   private _activeSelectionMode: SelectionMode;
@@ -135,7 +119,6 @@ export class SelectionManager extends EventEmitter {
     this.enable();
 
     this._model = new SelectionModel(_terminal);
-    this._lastMouseDownTime = 0;
     this._activeSelectionMode = SelectionMode.NORMAL;
   }
 
@@ -181,6 +164,9 @@ export class SelectionManager extends EventEmitter {
     this.clearSelection();
   }
 
+  public get selectionStart(): [number, number] { return this._model.finalSelectionStart; }
+  public get selectionEnd(): [number, number] { return this._model.finalSelectionEnd; }
+
   /**
    * Gets whether there is an active text selection.
    */
@@ -206,12 +192,12 @@ export class SelectionManager extends EventEmitter {
     // Get first row
     const startRowEndCol = start[1] === end[1] ? end[0] : null;
     let result: string[] = [];
-    result.push(this._translateBufferLineToString(this._buffer.get(start[1]), true, start[0], startRowEndCol));
+    result.push(translateBufferLineToString(this._buffer.get(start[1]), true, start[0], startRowEndCol));
 
     // Get middle rows
     for (let i = start[1] + 1; i <= end[1] - 1; i++) {
       const bufferLine = this._buffer.get(i);
-      const lineText = this._translateBufferLineToString(bufferLine, true);
+      const lineText = translateBufferLineToString(bufferLine, true);
       if (bufferLine.isWrapped) {
         result[result.length - 1] += lineText;
       } else {
@@ -222,7 +208,7 @@ export class SelectionManager extends EventEmitter {
     // Get final row
     if (start[1] !== end[1]) {
       const bufferLine = this._buffer.get(end[1]);
-      const lineText = this._translateBufferLineToString(bufferLine, true, 0, end[0]);
+      const lineText = translateBufferLineToString(bufferLine, true, 0, end[0]);
       if (bufferLine.isWrapped) {
         result[result.length - 1] += lineText;
       } else {
@@ -246,55 +232,6 @@ export class SelectionManager extends EventEmitter {
     this._model.clearSelection();
     this._removeMouseDownListeners();
     this.refresh();
-  }
-
-  /**
-   * Translates a buffer line to a string, with optional start and end columns.
-   * Wide characters will count as two columns in the resulting string. This
-   * function is useful for getting the actual text underneath the raw selection
-   * position.
-   * @param line The line being translated.
-   * @param trimRight Whether to trim whitespace to the right.
-   * @param startCol The column to start at.
-   * @param endCol The column to end at.
-   */
-  private _translateBufferLineToString(line: any, trimRight: boolean, startCol: number = 0, endCol: number = null): string {
-    // TODO: This function should live in a buffer or buffer line class
-
-    // Get full line
-    let lineString = '';
-    let widthAdjustedStartCol = startCol;
-    let widthAdjustedEndCol = endCol;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      lineString += char[LINE_DATA_CHAR_INDEX];
-      // Adjust start and end cols for wide characters if they affect their
-      // column indexes
-      if (char[LINE_DATA_WIDTH_INDEX] === 0) {
-        if (startCol >= i) {
-          widthAdjustedStartCol--;
-        }
-        if (endCol >= i) {
-          widthAdjustedEndCol--;
-        }
-      }
-    }
-
-    // Calculate the final end col by trimming whitespace on the right of the
-    // line if needed.
-    let finalEndCol = widthAdjustedEndCol || line.length;
-    if (trimRight) {
-      const rightWhitespaceIndex = lineString.search(/\s+$/);
-      if (rightWhitespaceIndex !== -1) {
-        finalEndCol = Math.min(finalEndCol, rightWhitespaceIndex);
-      }
-      // Return the empty string if only trimmed whitespace is selected
-      if (finalEndCol <= widthAdjustedStartCol) {
-        return '';
-      }
-    }
-
-    return lineString.substring(widthAdjustedStartCol, finalEndCol);
   }
 
   /**
@@ -396,16 +333,14 @@ export class SelectionManager extends EventEmitter {
     // Reset drag scroll state
     this._dragScrollAmount = 0;
 
-    this._setMouseClickCount(event);
-
     if (event.shiftKey) {
       this._onShiftClick(event);
     } else {
-      if (this._clickCount === 1) {
+      if (event.detail === 1) {
           this._onSingleClick(event);
-      } else if (this._clickCount === 2) {
+      } else if (event.detail === 2) {
           this._onDoubleClick(event);
-      } else if (this._clickCount === 3) {
+      } else if (event.detail === 3) {
           this._onTripleClick(event);
       }
     }
@@ -489,32 +424,6 @@ export class SelectionManager extends EventEmitter {
       this._activeSelectionMode = SelectionMode.LINE;
       this._selectLineAt(coords[1]);
     }
-  }
-
-  /**
-   * Sets the number of clicks for the current mousedown event based on the time
-   * and position of the last mousedown event.
-   * @param event The mouse event.
-   */
-  private _setMouseClickCount(event: MouseEvent): void {
-    let currentTime = (new Date()).getTime();
-    if (currentTime - this._lastMouseDownTime > CLEAR_MOUSE_DOWN_TIME || this._distanceFromLastMousePosition(event) > CLEAR_MOUSE_DISTANCE) {
-      this._clickCount = 0;
-    }
-    this._lastMouseDownTime = currentTime;
-    this._lastMousePosition = [event.pageX, event.pageY];
-    this._clickCount++;
-  }
-
-  /**
-   * Gets the maximum number of pixels in each direction the mouse has moved.
-   * @param event The mouse event.
-   */
-  private _distanceFromLastMousePosition(event: MouseEvent): number {
-    const result = Math.max(
-        Math.abs(this._lastMousePosition[0] - event.pageX),
-        Math.abs(this._lastMousePosition[1] - event.pageY));
-    return result;
   }
 
   /**
@@ -611,13 +520,21 @@ export class SelectionManager extends EventEmitter {
     return charIndex;
   }
 
+  public setSelection(col: number, row: number, length: number): void {
+    this._model.clearSelection();
+    this._removeMouseDownListeners();
+    this._model.selectionStart = [col, row];
+    this._model.selectionStartLength = length;
+    this.refresh();
+  }
+
   /**
    * Gets positional information for the word at the coordinated specified.
    * @param coords The coordinates to get the word at.
    */
   private _getWordAt(coords: [number, number]): IWordPosition {
     const bufferLine = this._buffer.get(coords[1]);
-    const line = this._translateBufferLineToString(bufferLine, false);
+    const line = translateBufferLineToString(bufferLine, false);
 
     // Get actual index, taking into consideration wide characters
     let endIndex = this._convertViewportColToCharacterIndex(bufferLine, coords);

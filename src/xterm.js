@@ -27,6 +27,7 @@ import * as Browser from './utils/Browser';
 import * as Mouse from './utils/Mouse';
 import { CHARSETS } from './Charsets';
 import { getRawByteCoords } from './utils/Mouse';
+import { translateBufferLineToString } from './utils/BufferLine';
 
 /**
  * Terminal Emulation References:
@@ -377,7 +378,7 @@ Terminal.prototype.focus = function() {
  * Retrieves an option's value from the terminal.
  * @param {string} key The option key.
  */
-Terminal.prototype.getOption = function(key, value) {
+Terminal.prototype.getOption = function(key) {
   if (!(key in Terminal.defaults)) {
     throw new Error('No option with key "' + key + '"');
   }
@@ -1150,10 +1151,6 @@ Terminal.prototype.showCursor = function() {
 Terminal.prototype.scroll = function(isWrapped) {
   var row;
 
-  if (this.buffers.active === this.buffers.alt) { //todo maybe it's mistake...
-    return;
-  }
-
   // Make room for the new row in lines
   if (this.buffer.lines.length === this.buffer.lines.maxLength) {
     this.buffer.lines.trimStart(1);
@@ -1224,12 +1221,12 @@ Terminal.prototype.scrollDisp = function(disp, suppressScrollEvent) {
     this.userScrolling = false;
   }
 
-  this.buffer.ydisp += disp;
+  const oldYdisp = this.buffer.ydisp;
+  this.buffer.ydisp = Math.max(Math.min(this.buffer.ydisp + disp, this.buffer.ybase), 0);
 
-  if (this.buffer.ydisp > this.buffer.ybase) {
-    this.buffer.ydisp = this.buffer.ybase;
-  } else if (this.buffer.ydisp < 0) {
-    this.buffer.ydisp = 0;
+  // No change occurred, don't trigger scroll/refresh
+  if (oldYdisp === this.buffer.ydisp) {
+    return;
   }
 
   if (!suppressScrollEvent) {
@@ -1926,6 +1923,10 @@ Terminal.prototype.resize = function(x, y) {
   , addToY;
 
   if (x === this.cols && y === this.rows) {
+    // Check if we still need to measure the char size (fixes #785).
+    if (!this.charMeasure.width || !this.charMeasure.height) {
+      this.charMeasure.measure();
+    }
     return;
   }
 
@@ -1958,10 +1959,8 @@ Terminal.prototype.resize = function(x, y) {
         if (this.buffer.ybase > 0 && this.buffer.lines.length <= this.buffer.ybase + this.buffer.y + addToY + 1) {
           // There is room above the buffer and there are no empty elements below the line,
           // scroll up
-          if (this.buffers.active !== this.buffers.alt) {
-            this.ybase--;
-            addToY++;
-          }
+          this.buffer.ybase--;
+          addToY++;
           if (this.buffer.ydisp > 0) {
             // Viewport is at the top of the buffer, must increase downwards
             this.buffer.ydisp--;
@@ -1984,10 +1983,8 @@ Terminal.prototype.resize = function(x, y) {
           this.buffer.lines.pop();
         } else {
           // The line is the cursor, scroll down
-          if (this.buffers.active !== this.buffers.alt) {
-            this.buffer.ybase++;
-            this.buffer.ydisp++;
-          }
+          this.buffer.ybase++;
+          this.buffer.ydisp++;
         }
       }
       if (this.children.length > y) {
@@ -2291,12 +2288,12 @@ Terminal.prototype.reset = function() {
   var customKeyEventHandler = this.customKeyEventHandler;
   var cursorBlinkInterval = this.cursorBlinkInterval;
   var inputHandler = this.inputHandler;
-  var buf = this.buffers;
+  var buffers = this.buffers;
   Terminal.call(this, this.options);
   this.customKeyEventHandler = customKeyEventHandler;
   this.cursorBlinkInterval = cursorBlinkInterval;
   this.inputHandler = inputHandler;
-  this.buffers = buf;
+  this.buffers = buffers;
   this.refresh(0, this.rows - 1);
   this.viewport.syncScrollArea();
 };
@@ -2442,6 +2439,7 @@ function keys(obj) {
  * Expose
  */
 
+Terminal.translateBufferLineToString = translateBufferLineToString;
 Terminal.EventEmitter = EventEmitter;
 Terminal.inherits = inherits;
 

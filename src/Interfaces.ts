@@ -22,6 +22,7 @@ export interface ITerminal {
   element: HTMLElement;
   rowContainer: HTMLElement;
   selectionContainer: HTMLElement;
+  selectionManager: ISelectionManager;
   charMeasure: ICharMeasure;
   textarea: HTMLTextAreaElement;
   rows: number;
@@ -33,10 +34,10 @@ export interface ITerminal {
   cursorState: number;
   defAttr: number;
   scrollback: number;
-  deltaYbase: number;
-  buffers: BufferSet;
+  buffers: any;  // This should be a `BufferSet` class, but it would result in circular dependency
   buffer: any;  // This should be a `Buffer` class, but it would result in circular dependency
   viewport: any;  // This should be a `Viewport` class, but it would result in circular dependency
+  deltaYbase: number;
 
   /**
    * Emit the 'data' event and populate the given data.
@@ -54,6 +55,10 @@ export interface ITerminal {
 
 export interface ISelectionManager {
   selectionText: string;
+  selectionStart: [number, number];
+  selectionEnd: [number, number];
+
+  setSelection(row: number, col: number, length: number);
 }
 
 export interface ICharMeasure {
