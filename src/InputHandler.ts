@@ -1115,13 +1115,11 @@ export class InputHandler implements IInputHandler {
           let diff: number = this.calculateDiff(this._terminal.buffers.normal.lines);
 
           let newYbase: number = this._terminal.buffers.normal.ybase; // begin from previous value
-          let newYdisp: number = this._terminal.buffers.normal.ydisp;
 
-          if (this._terminal.rows >= this._terminal.buffers.normal.lines.length) { // todo what is >=
+          if (this._terminal.rows > this._terminal.buffers.normal.lines.length) {
+            newYbase = 0;
 
-            newYbase = newYdisp = 0;
-
-            let blankLinesToRender: number = this._terminal.rows - this._terminal.buffers.normal.lines.length;
+            let blankLinesToRender: number = this._terminal.rows - this._terminal.buffers.normal.lines.length; // todo maybe such logic should be in the refresh method ...
             for (let i = 1; i <= blankLinesToRender; i++) { // todo try to use "shiftElements" and element to shift will be blank line...
               let blankLine = this._terminal.blankLine(null, false);
               this._terminal.buffers.normal.lines.push(blankLine);
@@ -1145,14 +1143,15 @@ export class InputHandler implements IInputHandler {
             this._terminal.buffers.normal.lines.trimEnd(cutLines);
           }
 
-          console.log('diff = ' + diff + ' ybase ' + newYbase + ' ydisp ' + newYdisp);
+          this._terminal.buffers.normal.deltaYbase = newYbase - this._terminal.buffers._normal.ybase;
           this._terminal.buffers.normal.ybase = newYbase;
-          this._terminal.buffers._normal.ydisp = newYdisp;
-          // this._terminal.diff = diff; // :)
+          this._terminal.buffers._normal.ydisp = newYbase;
+          this._terminal.buffers._normal.scrollBottom = this._terminal.rows - 1;
 
           if (params[0] === 1049) {
             this.restoreCursor(params);
           }
+
           this._terminal.selectionManager.setBuffer(this._terminal.buffer.lines);
           this._terminal.refresh(0, this._terminal.rows - 1);
           this._terminal.viewport.syncScrollArea();
@@ -1496,7 +1495,13 @@ export class InputHandler implements IInputHandler {
    */
   public restoreCursor(params: number[]): void {
     this._terminal.buffer.x = this._terminal.buffers.active.x || 0;
-    this._terminal.buffer.y = this._terminal.buffers.active.y || 0;
+    let y = this._terminal.buffers.active.y || 0;
+    if (this._terminal.buffers.active.deltaYbase) {
+        y = y - this._terminal.buffers.active.deltaYbase;
+        this._terminal.buffers.active.deltaYbase = 0;
+    }
+    this._terminal.buffer.y = y;
+    // this._terminal.buffer.y = clamp(y, 0, this._terminal.rows - 1);
   }
 
 // todo I am not sure about this method location...

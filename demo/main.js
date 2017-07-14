@@ -192,6 +192,11 @@ function createTerminalInfoTools(terminal, panel) {
   });
   panel.appendChild(scrollTopElem.view);
 
+  var scrollBottomElem = createDisplayElement("ScrollBottom:", function (ev) {
+    terminal.buffer.scrollBottom = this.value;
+  });
+  panel.appendChild(scrollBottomElem.view);
+
   var xElem = createDisplayElement("X:", function (ev) {
     terminal.buffer.x = this.value;
   });
@@ -212,12 +217,13 @@ function createTerminalInfoTools(terminal, panel) {
     ydispElem.valueElem.innerHTML = terminal.buffer.ydisp.toString();
     yBaseElem.valueElem.innerHTML = terminal.buffer.ybase.toString();
     scrollTopElem.valueElem.innerHTML = terminal.buffer.scrollTop.toString();
+    scrollBottomElem.valueElem.innerHTML = terminal.buffer.scrollBottom.toString();
     xElem.valueElem.innerHTML = terminal.buffer.x.toString();
     yElem.valueElem.innerHTML = terminal.buffer.y.toString();
     linesElem.valueElem.innerHTML = terminal.buffer.lines.length.toString();
   }, 500);
 
-  var resizeButton = addResizeButton(terminal);
+  var resizeButton = addRefreshButton(terminal);
   resizeButton.className = "resize-button";
   rightPanel.appendChild(resizeButton);
 }
@@ -246,11 +252,12 @@ function createDisplayElement(title, func) {
   return {view: parentElem, valueElem: valueElement};
 }
 
-function addResizeButton(terminal) {
+function addRefreshButton(terminal) {
   var button = document.createElement("button");
-  button.innerHTML = "Force resize";
+  button.innerHTML = "Refresh";
   button.addEventListener("click", function () {
-    terminal.resize();
+    terminal.refresh(0, terminal.rows - 1);
+    terminal.showCursor();
   });
   return button;
 }
