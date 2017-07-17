@@ -34,8 +34,8 @@ export interface ITerminal {
   cursorState: number;
   defAttr: number;
   scrollback: number;
-  buffers: any;  // This should be a `BufferSet` class, but it would result in circular dependency
-  buffer: any;  // This should be a `Buffer` class, but it would result in circular dependency
+  buffers: IBufferSet;
+  buffer: IBuffer;
   viewport: any;  // This should be a `Viewport` class, but it would result in circular dependency
   deltaYbase: number;
 
@@ -51,6 +51,24 @@ export interface ITerminal {
   emit(event: string, data: any);
   reset(): void;
   showCursor(): void;
+}
+
+export interface IBuffer {
+  lines: ICircularList<[number, string, number][]>;
+  ydisp: number;
+  ybase: number;
+  y: number;
+  x: number;
+  tabs: any;
+}
+
+export interface IBufferSet {
+  alt: IBuffer;
+  normal: IBuffer;
+  active: IBuffer;
+
+  activateNormalBuffer(): void;
+  activateAltBuffer(): void;
 }
 
 export interface ISelectionManager {
@@ -74,7 +92,7 @@ export interface ILinkifier {
   deregisterLinkMatcher(matcherId: number): boolean;
 }
 
-export interface ICircularList<T> {
+export interface ICircularList<T> extends IEventEmitter {
   length: number;
   maxLength: number;
 
@@ -87,6 +105,11 @@ export interface ICircularList<T> {
   trimStart(count: number): void;
   trimEnd(count: number): void;
   shiftElements(start: number, count: number, offset: number): void;
+}
+
+export interface IEventEmitter {
+  on(type, listener): void;
+  off(type, listener): void;
 }
 
 export interface LinkMatcherOptions {

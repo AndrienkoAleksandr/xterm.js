@@ -3,17 +3,17 @@
  */
 import jsdom = require('jsdom');
 import { assert } from 'chai';
-import { ITerminal } from './Interfaces';
+import { ITerminal, ICircularList } from './Interfaces';
 import { CharMeasure } from './utils/CharMeasure';
 import { CircularList } from './utils/CircularList';
 import { SelectionManager } from './SelectionManager';
 import { SelectionModel } from './SelectionModel';
-import {BufferSet} from './BufferSet';
+import { BufferSet } from './BufferSet';
 
 class TestSelectionManager extends SelectionManager {
   constructor(
     terminal: ITerminal,
-    buffer: CircularList<any>,
+    buffer: ICircularList<[number, string, number][]>,
     rowContainer: HTMLElement,
     charMeasure: CharMeasure
   ) {
@@ -37,7 +37,7 @@ describe('SelectionManager', () => {
   let document: Document;
 
   let terminal: ITerminal;
-  let bufferLines: CircularList<any>;
+  let bufferLines: ICircularList<[number, string, number][]>;
   let rowContainer: HTMLElement;
   let selectionManager: TestSelectionManager;
 
