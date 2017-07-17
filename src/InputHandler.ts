@@ -2,7 +2,7 @@
  * @license MIT
  */
 
-import { IInputHandler, ITerminal } from './Interfaces';
+import {ICircularList, IInputHandler, ITerminal} from './Interfaces';
 import { C0 } from './EscapeSequences';
 import { DEFAULT_CHARSET } from './Charsets';
 
