@@ -219,11 +219,13 @@ function Terminal(options) {
   this.surrogate_high = '';
 
   // Create the terminal's buffers and set the current buffer
-  this.buffers = new BufferSet(this);
-  this.buffer = this.buffers.active;  // Convenience shortcut;
-  this.buffers.on('activate', function (buffer) {
-    this._terminal.buffer = buffer;
-  });
+  if (!this.buffers) {
+    this.buffers = new BufferSet(this);
+    this.buffer = this.buffers.active;  // Convenience shortcut;
+    this.buffers.on('activate', function (buffer) {
+      this._terminal.buffer = buffer;
+    });
+  }
 
   var i = this.rows;
 
@@ -2293,12 +2295,13 @@ Terminal.prototype.reset = function() {
   var customKeyEventHandler = this.customKeyEventHandler;
   var cursorBlinkInterval = this.cursorBlinkInterval;
   var inputHandler = this.inputHandler;
-  var buffers = this.buffers;
+  var selectionManager = this.selectionManager;
   Terminal.call(this, this.options);
   this.customKeyEventHandler = customKeyEventHandler;
   this.cursorBlinkInterval = cursorBlinkInterval;
   this.inputHandler = inputHandler;
-  this.buffers = buffers;
+  this.selectionManager = selectionManager;
+  //this.buffer.reset();
   this.refresh(0, this.rows - 1);
   this.viewport.syncScrollArea();
 };
