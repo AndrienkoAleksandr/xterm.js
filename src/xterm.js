@@ -221,17 +221,17 @@ function Terminal(options) {
   // Create the terminal's buffers and set the current buffer
   if (!this.buffers) {
     this.buffers = new BufferSet(this);
-    this.buffer = this.buffers.active;  // Convenience shortcut;
-    this.buffers.on('activate', function (buffer) {
-      this._terminal.buffer = buffer;
-    });
   }
+  this.buffer = this.buffers.active;  // Convenience shortcut;
+  this.buffers.on('activate', function (buffer) {
+    this._terminal.buffer = buffer;
+  });
 
-  var i = this.rows;
-
-  while (i--) {
-    this.buffer.lines.push(this.blankLine());
-  }
+//  var i = this.rows;
+//
+//  while (i--) {
+//    this.buffer.lines.push(this.blankLine());
+//  }
   // Ensure the selection manager has the correct buffer
   if (this.selectionManager) {
     this.selectionManager.setBuffer(this.buffer.lines);
@@ -2290,18 +2290,25 @@ Terminal.prototype.reverseIndex = function() {
  * ESC c Full Reset (RIS).
  */
 Terminal.prototype.reset = function() {
+//  console.log("RESET");
   this.options.rows = this.rows;
   this.options.cols = this.cols;
   var customKeyEventHandler = this.customKeyEventHandler;
   var cursorBlinkInterval = this.cursorBlinkInterval;
   var inputHandler = this.inputHandler;
-  var selectionManager = this.selectionManager;
+  //todo
+  //  var selectionManager = this.selectionManager;
+  var buffers = this.buffers;
   Terminal.call(this, this.options);
   this.customKeyEventHandler = customKeyEventHandler;
   this.cursorBlinkInterval = cursorBlinkInterval;
   this.inputHandler = inputHandler;
-  this.selectionManager = selectionManager;
-  //this.buffer.reset();
+  this.buffers = buffers;
+  this.buffer.reset();
+//  var i = this.rows;
+//  while (i--) {
+//    this.buffer.lines.push(this.blankLine());
+//  }
   this.refresh(0, this.rows - 1);
   this.viewport.syncScrollArea();
 };

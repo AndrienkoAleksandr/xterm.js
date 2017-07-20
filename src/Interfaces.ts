@@ -51,6 +51,7 @@ export interface ITerminal {
   emit(event: string, data: any);
   reset(): void;
   showCursor(): void;
+  blankLine(): any;
 }
 
 export interface IBuffer {
@@ -60,6 +61,7 @@ export interface IBuffer {
   y: number;
   x: number;
   tabs: any;
+  reset(): void;
 }
 
 export interface IBufferSet {

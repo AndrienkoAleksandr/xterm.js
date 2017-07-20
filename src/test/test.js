@@ -939,14 +939,15 @@ describe('xterm.js', function() {
       assert.equal(xterm.buffers.normal.x, 0);
       assert.equal(xterm.buffers.normal.y, 3);
 
-      //set cursor position in the middle of the screen
+      // set cursor position in the middle of the screen
       xterm.write("[12;35H");
       assert.equal(xterm.buffers.alt.x, 34);
       assert.equal(xterm.buffers.alt.y, 11);
       assert.equal(xterm.buffers.normal.x, 0);
       assert.equal(xterm.buffers.normal.y, 3);
 
-      //write text on the colored background. Notice: '(B'- Set United States G0 character set
+      // write text on the colored background. Notice: '(B'- Set United States G0 character set
+      console.log(xterm.buffer.lines.length);
       xterm.write("(B[30m[46m test");
       assert.equal(getTextFromLine(xterm.buffer.lines, 11), "                                   test                                        ");
 
