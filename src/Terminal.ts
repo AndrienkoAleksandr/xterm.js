@@ -26,21 +26,16 @@ import { Buffer, MAX_BUFFER_SIZE } from './Buffer';
 import { CompositionHelper } from './CompositionHelper';
 import { EventEmitter } from './EventEmitter';
 import { Viewport } from './Viewport';
-import { rightClickHandler, moveTextAreaUnderMouseCursor, pasteHandler, copyHandler } from './handlers/Clipboard';
-import { CircularList } from './utils/CircularList';
 import { C0 } from './EscapeSequences';
 import { InputHandler } from './InputHandler';
 import { Parser } from './Parser';
 import { Renderer } from './renderer/Renderer';
-import { Linkifier } from './Linkifier';
 import { SelectionManager } from './SelectionManager';
 import { CharMeasure } from './utils/CharMeasure';
 import * as Browser from './utils/Browser';
 import { MouseHelper } from './utils/MouseHelper';
-import { CHARSETS } from './Charsets';
-import { CustomKeyEventHandler, Charset, LinkMatcherHandler, LinkMatcherValidationCallback, CharData, LineData } from './Types';
-import { ITerminal, IBrowser, ITerminalOptions, IInputHandlingTerminal, ILinkMatcherOptions, IViewport, ICompositionHelper, ITheme, ILinkifier } from './Interfaces';
-import { BellSound } from './utils/Sounds';
+import { CustomKeyEventHandler, Charset, CharData, LineData } from './Types';
+import { ITerminal, IBrowser, ITerminalOptions, IInputHandlingTerminal, IViewport, ICompositionHelper, ITheme } from './Interfaces';
 import { DEFAULT_ANSI_COLORS } from './renderer/ColorManager';
 import { IMouseZoneManager } from './input/Interfaces';
 import { MouseZoneManager } from './input/MouseZoneManager';
@@ -76,8 +71,6 @@ const DEFAULT_OPTIONS: ITerminalOptions = {
   termName: 'xterm',
   cursorBlink: false,
   cursorStyle: 'block',
-  bellSound: BellSound,
-  bellStyle: 'none',
   enableBold: true,
   fontFamily: 'courier-new, courier, monospace',
   fontSize: 15,
@@ -144,9 +137,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
 
   // mouse properties
   private decLocator: boolean; // This is unstable and never set
-  public x10Mouse: boolean;
-  public vt200Mouse: boolean;
-  private vt300Mouse: boolean; // This is unstable and never set
   public normalMouse: boolean;
   public mouseEvents: boolean;
   public sendFocus: boolean;
@@ -196,7 +186,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
   private parser: Parser;
   public renderer: IRenderer;
   public selectionManager: SelectionManager;
-  public linkifier: ILinkifier;
   public buffers: BufferSet;
   public buffer: Buffer;
   public viewport: IViewport;
@@ -294,7 +283,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
     // Reuse renderer if the Terminal is being recreated via a reset call.
     this.renderer = this.renderer || null;
     this.selectionManager = this.selectionManager || null;
-    this.linkifier = this.linkifier || new Linkifier(this);
     this._mouseZoneManager = this._mouseZoneManager || null;
 
     // Create the terminal's buffers and set the current buffer
@@ -316,13 +304,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
   public eraseAttr(): number {
     // if (this.is('screen')) return this.defAttr;
     return (this.defAttr & ~0x1ff) | (this.curAttr & 0x1ff);
-  }
-
-  /**
-   * Focus the terminal. Delegates focus handling to the terminal's DOM element.
-   */
-  public focus(): void {
-    this.textarea.focus();
   }
 
   public get isFocused(): boolean {
@@ -429,133 +410,11 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
         break;
       case 'tabStopWidth': this.buffers.setupTabStops(); break;
       case 'bellSound':
-      case 'bellStyle': this.syncBellSound(); break;
     }
     // Inform renderer of changes
     if (this.renderer) {
       this.renderer.onOptionsChanged();
     }
-  }
-
-  /**
-   * Binds the desired focus behavior on a given terminal object.
-   */
-  private _onTextAreaFocus(): void {
-    if (this.sendFocus) {
-      this.send(C0.ESC + '[I');
-    }
-    this.element.classList.add('focus');
-    this.showCursor();
-    this.emit('focus');
-  };
-
-  /**
-   * Blur the terminal, calling the blur function on the terminal's underlying
-   * textarea.
-   */
-  public blur(): void {
-    return this.textarea.blur();
-  }
-
-  /**
-   * Binds the desired blur behavior on a given terminal object.
-   */
-  private _onTextAreaBlur(): void {
-    this.refresh(this.buffer.y, this.buffer.y);
-    if (this.sendFocus) {
-      this.send(C0.ESC + '[O');
-    }
-    this.element.classList.remove('focus');
-    this.emit('blur');
-  }
-
-  /**
-   * Initialize default behavior
-   */
-  private initGlobal(): void {
-    this.bindKeys();
-
-    // Bind clipboard functionality
-    on(this.element, 'copy', (event: ClipboardEvent) => {
-      // If mouse events are active it means the selection manager is disabled and
-      // copy should be handled by the host program.
-      if (!this.hasSelection()) {
-        return;
-      }
-      copyHandler(event, this, this.selectionManager);
-    });
-    const pasteHandlerWrapper = event => pasteHandler(event, this);
-    on(this.textarea, 'paste', pasteHandlerWrapper);
-    on(this.element, 'paste', pasteHandlerWrapper);
-
-    // Handle right click context menus
-    if (Browser.isFirefox) {
-      // Firefox doesn't appear to fire the contextmenu event on right click
-      on(this.element, 'mousedown', (event: MouseEvent) => {
-        if (event.button === 2) {
-          rightClickHandler(event, this.textarea, this.selectionManager);
-        }
-      });
-    } else {
-      on(this.element, 'contextmenu', (event: MouseEvent) => {
-        rightClickHandler(event, this.textarea, this.selectionManager);
-      });
-    }
-
-    // Move the textarea under the cursor when middle clicking on Linux to ensure
-    // middle click to paste selection works. This only appears to work in Chrome
-    // at the time is writing.
-    if (Browser.isLinux) {
-      // Use auxclick event over mousedown the latter doesn't seem to work. Note
-      // that the regular click event doesn't fire for the middle mouse button.
-      on(this.element, 'auxclick', (event: MouseEvent) => {
-        if (event.button === 1) {
-          moveTextAreaUnderMouseCursor(event, this.textarea);
-        }
-      });
-    }
-  }
-
-  /**
-   * Apply key handling to the terminal
-   */
-  private bindKeys(): void {
-    const self = this;
-    on(this.element, 'keydown', function (ev: KeyboardEvent): void {
-      if (document.activeElement !== this) {
-        return;
-      }
-      self._keyDown(ev);
-    }, true);
-
-    on(this.element, 'keypress', function (ev: KeyboardEvent): void {
-      if (document.activeElement !== this) {
-        return;
-      }
-      self._keyPress(ev);
-    }, true);
-
-    on(this.element, 'keyup', (ev: KeyboardEvent) => {
-      if (!wasMondifierKeyOnlyEvent(ev)) {
-        this.focus();
-      }
-    }, true);
-
-    on(this.textarea, 'keydown', (ev: KeyboardEvent) => {
-      this._keyDown(ev);
-    }, true);
-
-    on(this.textarea, 'keypress', (ev: KeyboardEvent) => {
-      this._keyPress(ev);
-      // Truncate the textarea's value, since it is not needed
-      this.textarea.value = '';
-    }, true);
-
-    on(this.textarea, 'compositionstart', () => this.compositionHelper.compositionstart());
-    on(this.textarea, 'compositionupdate', (e: CompositionEvent) => this.compositionHelper.compositionupdate(e));
-    on(this.textarea, 'compositionend', () => this.compositionHelper.compositionend());
-    this.on('refresh', () => this.compositionHelper.updateCompositionElements());
-    this.on('refresh', (data) => this.queueLinkification(data.start, data.end));
   }
 
   /**
@@ -594,12 +453,8 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
     this.viewportScrollArea.classList.add('xterm-scroll-area');
     this.viewportElement.appendChild(this.viewportScrollArea);
 
-    // preload audio
-    this.syncBellSound();
-
     this._mouseZoneManager = new MouseZoneManager(this);
     this.on('scroll', () => this._mouseZoneManager.clearAll());
-    this.linkifier.attachToDom(this._mouseZoneManager);
 
     // Create the container that will hold helpers like the textarea for
     // capturing DOM Events. Then produce the helpers.
@@ -613,8 +468,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
     this.textarea.setAttribute('autocapitalize', 'off');
     this.textarea.setAttribute('spellcheck', 'false');
     this.textarea.tabIndex = 0;
-    this.textarea.addEventListener('focus', () => this._onTextAreaFocus());
-    this.textarea.addEventListener('blur', () => this._onTextAreaBlur());
     this.helperContainer.appendChild(this.textarea);
 
     this.compositionView = document.createElement('div');
@@ -636,14 +489,11 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
 
     this.on('cursormove', () => this.renderer.onCursorMove());
     this.on('resize', () => this.renderer.onResize(this.cols, this.rows, false));
-    this.on('blur', () => this.renderer.onBlur());
-    this.on('focus', () => this.renderer.onFocus());
     window.addEventListener('resize', () => this.renderer.onWindowResize(window.devicePixelRatio));
     this.charMeasure.on('charsizechanged', () => this.renderer.onResize(this.cols, this.rows, true));
     this.renderer.on('resize', (dimensions) => this.viewport.syncScrollArea());
 
     this.selectionManager = new SelectionManager(this, this.buffer, this.charMeasure);
-    this.element.addEventListener('mousedown', (e: MouseEvent) => this.selectionManager.onMouseDown(e));
     this.selectionManager.on('refresh', data => this.renderer.onSelectionChanged(data.start, data.end));
     this.selectionManager.on('newselection', text => {
       // If there's a new selection, put it into the textarea, focus and select it
@@ -666,13 +516,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
 
     // Setup loop that draws to screen
     this.refresh(0, this.rows - 1);
-
-    // Initialize global actions that need to be taken on the document.
-    this.initGlobal();
-
-    // Listen for mouse events and translate
-    // them into terminal mouse protocols.
-    this.bindMouse();
   }
 
   /**
@@ -706,316 +549,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
   }
 
   /**
-   * XTerm mouse events
-   * http://invisible-island.net/xterm/ctlseqs/ctlseqs.html#Mouse%20Tracking
-   * To better understand these
-   * the xterm code is very helpful:
-   * Relevant files:
-   *   button.c, charproc.c, misc.c
-   * Relevant functions in xterm/button.c:
-   *   BtnCode, EmitButtonCode, EditorButton, SendMousePosition
-   */
-  public bindMouse(): void {
-    const el = this.element;
-    const self = this;
-    let pressed = 32;
-
-    // mouseup, mousedown, wheel
-    // left click: ^[[M 3<^[[M#3<
-    // wheel up: ^[[M`3>
-    function sendButton(ev: MouseEvent | WheelEvent): void {
-      let button;
-      let pos;
-
-      // get the xterm-style button
-      button = getButton(ev);
-
-      // get mouse coordinates
-      pos = self.mouseHelper.getRawByteCoords(ev, self.element, self.charMeasure, self.options.lineHeight, self.cols, self.rows);
-      if (!pos) return;
-
-      sendEvent(button, pos);
-
-      switch ((<any>ev).overrideType || ev.type) {
-        case 'mousedown':
-          pressed = button;
-          break;
-        case 'mouseup':
-          // keep it at the left
-          // button, just in case.
-          pressed = 32;
-          break;
-        case 'wheel':
-          // nothing. don't
-          // interfere with
-          // `pressed`.
-          break;
-      }
-    }
-
-    // motion example of a left click:
-    // ^[[M 3<^[[M@4<^[[M@5<^[[M@6<^[[M@7<^[[M#7<
-    function sendMove(ev: MouseEvent): void {
-      let button = pressed;
-      let pos = self.mouseHelper.getRawByteCoords(ev, self.element, self.charMeasure, self.options.lineHeight, self.cols, self.rows);
-      if (!pos) return;
-
-      // buttons marked as motions
-      // are incremented by 32
-      button += 32;
-
-      sendEvent(button, pos);
-    }
-
-    // encode button and
-    // position to characters
-    function encode(data: number[], ch: number): void {
-      if (!self.utfMouse) {
-        if (ch === 255) {
-          data.push(0);
-          return;
-        }
-        if (ch > 127) ch = 127;
-        data.push(ch);
-      } else {
-        if (ch === 2047) {
-          data.push(0);
-          return;
-        }
-        if (ch < 127) {
-          data.push(ch);
-        } else {
-          if (ch > 2047) ch = 2047;
-          data.push(0xC0 | (ch >> 6));
-          data.push(0x80 | (ch & 0x3F));
-        }
-      }
-    }
-
-    // send a mouse event:
-    // regular/utf8: ^[[M Cb Cx Cy
-    // urxvt: ^[[ Cb ; Cx ; Cy M
-    // sgr: ^[[ Cb ; Cx ; Cy M/m
-    // vt300: ^[[ 24(1/3/5)~ [ Cx , Cy ] \r
-    // locator: CSI P e ; P b ; P r ; P c ; P p & w
-    function sendEvent(button: number, pos: {x: number, y: number}): void {
-      // self.emit('mouse', {
-      //   x: pos.x - 32,
-      //   y: pos.x - 32,
-      //   button: button
-      // });
-
-      if (self.vt300Mouse) {
-        // NOTE: Unstable.
-        // http://www.vt100.net/docs/vt3xx-gp/chapter15.html
-        button &= 3;
-        pos.x -= 32;
-        pos.y -= 32;
-        let data = C0.ESC + '[24';
-        if (button === 0) data += '1';
-        else if (button === 1) data += '3';
-        else if (button === 2) data += '5';
-        else if (button === 3) return;
-        else data += '0';
-        data += '~[' + pos.x + ',' + pos.y + ']\r';
-        self.send(data);
-        return;
-      }
-
-      if (self.decLocator) {
-        // NOTE: Unstable.
-        button &= 3;
-        pos.x -= 32;
-        pos.y -= 32;
-        if (button === 0) button = 2;
-        else if (button === 1) button = 4;
-        else if (button === 2) button = 6;
-        else if (button === 3) button = 3;
-        self.send(C0.ESC + '['
-                  + button
-                  + ';'
-                  + (button === 3 ? 4 : 0)
-                  + ';'
-                  + pos.y
-                  + ';'
-                  + pos.x
-                  + ';'
-                  // Not sure what page is meant to be
-                  + (<any>pos).page || 0
-                  + '&w');
-        return;
-      }
-
-      if (self.urxvtMouse) {
-        pos.x -= 32;
-        pos.y -= 32;
-        pos.x++;
-        pos.y++;
-        self.send(C0.ESC + '[' + button + ';' + pos.x + ';' + pos.y + 'M');
-        return;
-      }
-
-      if (self.sgrMouse) {
-        pos.x -= 32;
-        pos.y -= 32;
-        self.send(C0.ESC + '[<'
-                  + (((button & 3) === 3 ? button & ~3 : button) - 32)
-                  + ';'
-                  + pos.x
-                  + ';'
-                  + pos.y
-                  + ((button & 3) === 3 ? 'm' : 'M'));
-        return;
-      }
-
-      let data: number[] = [];
-
-      encode(data, button);
-      encode(data, pos.x);
-      encode(data, pos.y);
-
-      self.send(C0.ESC + '[M' + String.fromCharCode.apply(String, data));
-    }
-
-    function getButton(ev: MouseEvent): number {
-      let button;
-      let shift;
-      let meta;
-      let ctrl;
-      let mod;
-
-      // two low bits:
-      // 0 = left
-      // 1 = middle
-      // 2 = right
-      // 3 = release
-      // wheel up/down:
-      // 1, and 2 - with 64 added
-      switch ((<any>ev).overrideType || ev.type) {
-        case 'mousedown':
-          button = ev.button != null
-            ? +ev.button
-          : ev.which != null
-            ? ev.which - 1
-          : null;
-
-          if (Browser.isMSIE) {
-            button = button === 1 ? 0 : button === 4 ? 1 : button;
-          }
-          break;
-        case 'mouseup':
-          button = 3;
-          break;
-        case 'DOMMouseScroll':
-          button = ev.detail < 0
-            ? 64
-          : 65;
-          break;
-        case 'wheel':
-          button = (<WheelEvent>ev).wheelDeltaY > 0
-            ? 64
-          : 65;
-          break;
-      }
-
-      // next three bits are the modifiers:
-      // 4 = shift, 8 = meta, 16 = control
-      shift = ev.shiftKey ? 4 : 0;
-      meta = ev.metaKey ? 8 : 0;
-      ctrl = ev.ctrlKey ? 16 : 0;
-      mod = shift | meta | ctrl;
-
-      // no mods
-      if (self.vt200Mouse) {
-        // ctrl only
-        mod &= ctrl;
-      } else if (!self.normalMouse) {
-        mod = 0;
-      }
-
-      // increment to SP
-      button = (32 + (mod << 2)) + button;
-
-      return button;
-    }
-
-    on(el, 'mousedown', (ev: MouseEvent) => {
-
-      // Prevent the focus on the textarea from getting lost
-      // and make sure we get focused on mousedown
-      ev.preventDefault();
-      this.focus();
-
-      // Don't send the mouse button to the pty if mouse events are disabled or
-      // if the selection manager is having selection forced (ie. a modifier is
-      // held).
-      if (!this.mouseEvents || this.selectionManager.shouldForceSelection(ev)) {
-        return;
-      }
-
-      // send the button
-      sendButton(ev);
-
-      // fix for odd bug
-      // if (this.vt200Mouse && !this.normalMouse) {
-      if (this.vt200Mouse) {
-        (<any>ev).overrideType = 'mouseup';
-        sendButton(ev);
-        return this.cancel(ev);
-      }
-
-      // bind events
-      if (this.normalMouse) on(this.document, 'mousemove', sendMove);
-
-      // x10 compatibility mode can't send button releases
-      if (!this.x10Mouse) {
-        const handler = (ev: MouseEvent) => {
-          sendButton(ev);
-          // TODO: Seems dangerous calling this on document?
-          if (this.normalMouse) off(this.document, 'mousemove', sendMove);
-          off(this.document, 'mouseup', handler);
-          return this.cancel(ev);
-        };
-        // TODO: Seems dangerous calling this on document?
-        on(this.document, 'mouseup', handler);
-      }
-
-      return this.cancel(ev);
-    });
-
-    // if (this.normalMouse) {
-    //  on(this.document, 'mousemove', sendMove);
-    // }
-
-    on(el, 'wheel', (ev: WheelEvent) => {
-      if (!this.mouseEvents) return;
-      if (this.x10Mouse || this.vt300Mouse || this.decLocator) return;
-      sendButton(ev);
-      ev.preventDefault();
-    });
-
-    // allow wheel scrolling in
-    // the shell for example
-    on(el, 'wheel', (ev: WheelEvent) => {
-      if (this.mouseEvents) return;
-      this.viewport.onWheel(ev);
-      return this.cancel(ev);
-    });
-
-    on(el, 'touchstart', (ev: TouchEvent) => {
-      if (this.mouseEvents) return;
-      this.viewport.onTouchStart(ev);
-      return this.cancel(ev);
-    });
-
-    on(el, 'touchmove', (ev: TouchEvent) => {
-      if (this.mouseEvents) return;
-      this.viewport.onTouchMove(ev);
-      return this.cancel(ev);
-    });
-  }
-
-  /**
    * Destroys the terminal.
    */
   public destroy(): void {
@@ -1039,17 +572,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
   public refresh(start: number, end: number): void {
     if (this.renderer) {
       this.renderer.queueRefresh(start, end);
-    }
-  }
-
-  /**
-   * Queues linkification for the specified rows.
-   * @param {number} start The row to start from (between 0 and this.rows - 1).
-   * @param {number} end The row to end at (between start and this.rows - 1).
-   */
-  private queueLinkification(start: number, end: number): void {
-    if (this.linkifier) {
-      this.linkifier.linkifyRows(start, end);
     }
   }
 
@@ -1261,67 +783,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
   }
 
   /**
-   * Attaches a http(s) link handler, forcing web links to behave differently to
-   * regular <a> tags. This will trigger a refresh as links potentially need to be
-   * reconstructed. Calling this with null will remove the handler.
-   * @param handler The handler callback function.
-   */
-  public setHypertextLinkHandler(handler: LinkMatcherHandler): void {
-    if (!this.linkifier) {
-      throw new Error('Cannot attach a hypertext link handler before Terminal.open is called');
-    }
-    this.linkifier.setHypertextLinkHandler(handler);
-    // Refresh to force links to refresh
-    this.refresh(0, this.rows - 1);
-  }
-
-  /**
-   * Attaches a validation callback for hypertext links. This is useful to use
-   * validation logic or to do something with the link's element and url.
-   * @param callback The callback to use, this can
-   * be cleared with null.
-   */
-  public setHypertextValidationCallback(callback: LinkMatcherValidationCallback): void {
-    if (!this.linkifier) {
-      throw new Error('Cannot attach a hypertext validation callback before Terminal.open is called');
-    }
-    this.linkifier.setHypertextValidationCallback(callback);
-    // // Refresh to force links to refresh
-    this.refresh(0, this.rows - 1);
-  }
-
-  /**
-   * Registers a link matcher, allowing custom link patterns to be matched and
-   * handled.
-   * @param regex The regular expression to search for, specifically
-   * this searches the textContent of the rows. You will want to use \s to match
-   * a space ' ' character for example.
-   * @param handler The callback when the link is called.
-   * @param options Options for the link matcher.
-   * @return The ID of the new matcher, this can be used to deregister.
-   */
-  public registerLinkMatcher(regex: RegExp, handler: LinkMatcherHandler, options?: ILinkMatcherOptions): number {
-    if (this.linkifier) {
-      const matcherId = this.linkifier.registerLinkMatcher(regex, handler, options);
-      this.refresh(0, this.rows - 1);
-      return matcherId;
-    }
-    return 0;
-  }
-
-  /**
-   * Deregisters a link matcher if it has been registered.
-   * @param matcherId The link matcher's ID (returned after register)
-   */
-  public deregisterLinkMatcher(matcherId: number): void {
-    if (this.linkifier) {
-      if (this.linkifier.deregisterLinkMatcher(matcherId)) {
-        this.refresh(0, this.rows - 1);
-      }
-    }
-  }
-
-  /**
    * Gets whether the terminal has an active selection.
    */
   public hasSelection(): boolean {
@@ -1355,375 +816,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
   }
 
   /**
-   * Handle a keydown event
-   * Key Resources:
-   *   - https://developer.mozilla.org/en-US/docs/DOM/KeyboardEvent
-   * @param {KeyboardEvent} ev The keydown event to be handled.
-   */
-  protected _keyDown(ev: KeyboardEvent): boolean {
-    if (this.customKeyEventHandler && this.customKeyEventHandler(ev) === false) {
-      return false;
-    }
-
-    if (!this.compositionHelper.keydown(ev)) {
-      if (this.buffer.ybase !== this.buffer.ydisp) {
-        this.scrollToBottom();
-      }
-      return false;
-    }
-
-    const result = this._evaluateKeyEscapeSequence(ev);
-
-    if (result.key === C0.DC3) { // XOFF
-      this.writeStopped = true;
-    } else if (result.key === C0.DC1) { // XON
-      this.writeStopped = false;
-    }
-
-    if (result.scrollLines) {
-      this.scrollLines(result.scrollLines);
-      return this.cancel(ev, true);
-    }
-
-    if (isThirdLevelShift(this.browser, ev)) {
-      return true;
-    }
-
-    if (result.cancel) {
-      // The event is canceled at the end already, is this necessary?
-      this.cancel(ev, true);
-    }
-
-    if (!result.key) {
-      return true;
-    }
-
-    this.emit('keydown', ev);
-    this.emit('key', result.key, ev);
-    this.showCursor();
-    this.handler(result.key);
-
-    return this.cancel(ev, true);
-  }
-
-  /**
-   * Returns an object that determines how a KeyboardEvent should be handled. The key of the
-   * returned value is the new key code to pass to the PTY.
-   *
-   * Reference: http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
-   * @param ev The keyboard event to be translated to key escape sequence.
-   */
-  protected _evaluateKeyEscapeSequence(ev: KeyboardEvent): {cancel: boolean, key: string, scrollLines: number} {
-    const result: {cancel: boolean, key: string, scrollLines: number} = {
-      // Whether to cancel event propogation (NOTE: this may not be needed since the event is
-      // canceled at the end of keyDown
-      cancel: false,
-      // The new key even to emit
-      key: undefined,
-      // The number of characters to scroll, if this is defined it will cancel the event
-      scrollLines: undefined
-    };
-    const modifiers = (ev.shiftKey ? 1 : 0) | (ev.altKey ? 2 : 0) | (ev.ctrlKey ? 4 : 0) | (ev.metaKey ? 8 : 0);
-    switch (ev.keyCode) {
-      case 0:
-        if (ev.key === 'UIKeyInputUpArrow') {
-          if (this.applicationCursor) {
-            result.key = C0.ESC + 'OA';
-          } else {
-            result.key = C0.ESC + '[A';
-          }
-        }
-        else if (ev.key === 'UIKeyInputLeftArrow') {
-          if (this.applicationCursor) {
-            result.key = C0.ESC + 'OD';
-          } else {
-            result.key = C0.ESC + '[D';
-          }
-        }
-        else if (ev.key === 'UIKeyInputRightArrow') {
-          if (this.applicationCursor) {
-            result.key = C0.ESC + 'OC';
-          } else {
-            result.key = C0.ESC + '[C';
-          }
-        }
-        else if (ev.key === 'UIKeyInputDownArrow') {
-          if (this.applicationCursor) {
-            result.key = C0.ESC + 'OB';
-          } else {
-            result.key = C0.ESC + '[B';
-          }
-        }
-        break;
-      case 8:
-        // backspace
-        if (ev.shiftKey) {
-          result.key = C0.BS; // ^H
-          break;
-        }
-        result.key = C0.DEL; // ^?
-        break;
-      case 9:
-        // tab
-        if (ev.shiftKey) {
-          result.key = C0.ESC + '[Z';
-          break;
-        }
-        result.key = C0.HT;
-        result.cancel = true;
-        break;
-      case 13:
-        // return/enter
-        result.key = C0.CR;
-        result.cancel = true;
-        break;
-      case 27:
-        // escape
-        result.key = C0.ESC;
-        result.cancel = true;
-        break;
-      case 37:
-        // left-arrow
-        if (modifiers) {
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'D';
-          // HACK: Make Alt + left-arrow behave like Ctrl + left-arrow: move one word backwards
-          // http://unix.stackexchange.com/a/108106
-          // macOS uses different escape sequences than linux
-          if (result.key === C0.ESC + '[1;3D') {
-            result.key = (this.browser.isMac) ? C0.ESC + 'b' : C0.ESC + '[1;5D';
-          }
-        } else if (this.applicationCursor) {
-          result.key = C0.ESC + 'OD';
-        } else {
-          result.key = C0.ESC + '[D';
-        }
-        break;
-      case 39:
-        // right-arrow
-        if (modifiers) {
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'C';
-          // HACK: Make Alt + right-arrow behave like Ctrl + right-arrow: move one word forward
-          // http://unix.stackexchange.com/a/108106
-          // macOS uses different escape sequences than linux
-          if (result.key === C0.ESC + '[1;3C') {
-            result.key = (this.browser.isMac) ? C0.ESC + 'f' : C0.ESC + '[1;5C';
-          }
-        } else if (this.applicationCursor) {
-          result.key = C0.ESC + 'OC';
-        } else {
-          result.key = C0.ESC + '[C';
-        }
-        break;
-      case 38:
-        // up-arrow
-        if (modifiers) {
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'A';
-          // HACK: Make Alt + up-arrow behave like Ctrl + up-arrow
-          // http://unix.stackexchange.com/a/108106
-          if (result.key === C0.ESC + '[1;3A') {
-            result.key = C0.ESC + '[1;5A';
-          }
-        } else if (this.applicationCursor) {
-          result.key = C0.ESC + 'OA';
-        } else {
-          result.key = C0.ESC + '[A';
-        }
-        break;
-      case 40:
-        // down-arrow
-        if (modifiers) {
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'B';
-          // HACK: Make Alt + down-arrow behave like Ctrl + down-arrow
-          // http://unix.stackexchange.com/a/108106
-          if (result.key === C0.ESC + '[1;3B') {
-            result.key = C0.ESC + '[1;5B';
-          }
-        } else if (this.applicationCursor) {
-          result.key = C0.ESC + 'OB';
-        } else {
-          result.key = C0.ESC + '[B';
-        }
-        break;
-      case 45:
-        // insert
-        if (!ev.shiftKey && !ev.ctrlKey) {
-          // <Ctrl> or <Shift> + <Insert> are used to
-          // copy-paste on some systems.
-          result.key = C0.ESC + '[2~';
-        }
-        break;
-      case 46:
-        // delete
-        if (modifiers) {
-          result.key = C0.ESC + '[3;' + (modifiers + 1) + '~';
-        } else {
-          result.key = C0.ESC + '[3~';
-        }
-        break;
-      case 36:
-        // home
-        if (modifiers)
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'H';
-        else if (this.applicationCursor)
-          result.key = C0.ESC + 'OH';
-        else
-          result.key = C0.ESC + '[H';
-        break;
-      case 35:
-        // end
-        if (modifiers)
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'F';
-        else if (this.applicationCursor)
-          result.key = C0.ESC + 'OF';
-        else
-          result.key = C0.ESC + '[F';
-        break;
-      case 33:
-        // page up
-        if (ev.shiftKey) {
-          result.scrollLines = -(this.rows - 1);
-        } else {
-          result.key = C0.ESC + '[5~';
-        }
-        break;
-      case 34:
-        // page down
-        if (ev.shiftKey) {
-          result.scrollLines = this.rows - 1;
-        } else {
-          result.key = C0.ESC + '[6~';
-        }
-        break;
-      case 112:
-        // F1-F12
-        if (modifiers) {
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'P';
-        } else {
-          result.key = C0.ESC + 'OP';
-        }
-        break;
-      case 113:
-        if (modifiers) {
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'Q';
-        } else {
-          result.key = C0.ESC + 'OQ';
-        }
-        break;
-      case 114:
-        if (modifiers) {
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'R';
-        } else {
-          result.key = C0.ESC + 'OR';
-        }
-        break;
-      case 115:
-        if (modifiers) {
-          result.key = C0.ESC + '[1;' + (modifiers + 1) + 'S';
-        } else {
-          result.key = C0.ESC + 'OS';
-        }
-        break;
-      case 116:
-        if (modifiers) {
-          result.key = C0.ESC + '[15;' + (modifiers + 1) + '~';
-        } else {
-          result.key = C0.ESC + '[15~';
-        }
-        break;
-      case 117:
-        if (modifiers) {
-          result.key = C0.ESC + '[17;' + (modifiers + 1) + '~';
-        } else {
-          result.key = C0.ESC + '[17~';
-        }
-        break;
-      case 118:
-        if (modifiers) {
-          result.key = C0.ESC + '[18;' + (modifiers + 1) + '~';
-        } else {
-          result.key = C0.ESC + '[18~';
-        }
-        break;
-      case 119:
-        if (modifiers) {
-          result.key = C0.ESC + '[19;' + (modifiers + 1) + '~';
-        } else {
-          result.key = C0.ESC + '[19~';
-        }
-        break;
-      case 120:
-        if (modifiers) {
-          result.key = C0.ESC + '[20;' + (modifiers + 1) + '~';
-        } else {
-          result.key = C0.ESC + '[20~';
-        }
-        break;
-      case 121:
-        if (modifiers) {
-          result.key = C0.ESC + '[21;' + (modifiers + 1) + '~';
-        } else {
-          result.key = C0.ESC + '[21~';
-        }
-        break;
-      case 122:
-        if (modifiers) {
-          result.key = C0.ESC + '[23;' + (modifiers + 1) + '~';
-        } else {
-          result.key = C0.ESC + '[23~';
-        }
-        break;
-      case 123:
-        if (modifiers) {
-          result.key = C0.ESC + '[24;' + (modifiers + 1) + '~';
-        } else {
-          result.key = C0.ESC + '[24~';
-        }
-        break;
-      default:
-        // a-z and space
-        if (ev.ctrlKey && !ev.shiftKey && !ev.altKey && !ev.metaKey) {
-          if (ev.keyCode >= 65 && ev.keyCode <= 90) {
-            result.key = String.fromCharCode(ev.keyCode - 64);
-          } else if (ev.keyCode === 32) {
-            // NUL
-            result.key = String.fromCharCode(0);
-          } else if (ev.keyCode >= 51 && ev.keyCode <= 55) {
-            // escape, file sep, group sep, record sep, unit sep
-            result.key = String.fromCharCode(ev.keyCode - 51 + 27);
-          } else if (ev.keyCode === 56) {
-            // delete
-            result.key = String.fromCharCode(127);
-          } else if (ev.keyCode === 219) {
-            // ^[ - Control Sequence Introducer (CSI)
-            result.key = String.fromCharCode(27);
-          } else if (ev.keyCode === 220) {
-            // ^\ - String Terminator (ST)
-            result.key = String.fromCharCode(28);
-          } else if (ev.keyCode === 221) {
-            // ^] - Operating System Command (OSC)
-            result.key = String.fromCharCode(29);
-          }
-        } else if (!this.browser.isMac && ev.altKey && !ev.ctrlKey && !ev.metaKey) {
-          // On Mac this is a third level shift. Use <Esc> instead.
-          if (ev.keyCode >= 65 && ev.keyCode <= 90) {
-            result.key = C0.ESC + String.fromCharCode(ev.keyCode + 32);
-          } else if (ev.keyCode === 192) {
-            result.key = C0.ESC + '`';
-          } else if (ev.keyCode >= 48 && ev.keyCode <= 57) {
-            result.key = C0.ESC + (ev.keyCode - 48);
-          }
-        } else if (this.browser.isMac && !ev.altKey && !ev.ctrlKey && ev.metaKey) {
-          if (ev.keyCode === 65) { // cmd + a
-            this.selectAll();
-          }
-        }
-        break;
-    }
-
-    return result;
-  }
-
-  /**
    * Set the G level of the terminal
    * @param g
    */
@@ -1745,47 +837,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
   }
 
   /**
-   * Handle a keypress event.
-   * Key Resources:
-   *   - https://developer.mozilla.org/en-US/docs/DOM/KeyboardEvent
-   * @param {KeyboardEvent} ev The keypress event to be handled.
-   */
-  protected _keyPress(ev: KeyboardEvent): boolean {
-    let key;
-
-    if (this.customKeyEventHandler && this.customKeyEventHandler(ev) === false) {
-      return false;
-    }
-
-    this.cancel(ev);
-
-    if (ev.charCode) {
-      key = ev.charCode;
-    } else if (ev.which == null) {
-      key = ev.keyCode;
-    } else if (ev.which !== 0 && ev.charCode !== 0) {
-      key = ev.which;
-    } else {
-      return false;
-    }
-
-    if (!key || (
-      (ev.altKey || ev.ctrlKey || ev.metaKey) && !isThirdLevelShift(this.browser, ev)
-    )) {
-      return false;
-    }
-
-    key = String.fromCharCode(key);
-
-    this.emit('keypress', key, ev);
-    this.emit('key', key, ev);
-    this.showCursor();
-    this.handler(key);
-
-    return true;
-  }
-
-  /**
    * Send data for handling to the terminal
    * @param {string} data
    */
@@ -1798,23 +849,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
     }
 
     this.sendDataQueue += data;
-  }
-
-  /**
-   * Ring the bell.
-   * Note: We could do sweet things with webaudio here
-   */
-  public bell(): void {
-    this.emit('bell');
-    if (this.soundBell()) this.bellAudioElement.play();
-
-    if (this.visualBell()) {
-      this.element.classList.add('visual-bell-active');
-      clearTimeout(this.visualBellTimer);
-      this.visualBellTimer = window.setTimeout(() => {
-        this.element.classList.remove('visual-bell-active');
-      }, 200);
-    }
   }
 
   /**
@@ -2024,20 +1058,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
   }
 
   /**
-   * Emit the 'title' event and populate the given title.
-   * @param {string} title The title to populate in the event.
-   */
-  private handleTitle(title: string): void {
-    /**
-     * This event is emitted when the title of the terminal is changed
-     * from inside the terminal. The parameter is the new title.
-     *
-     * @event title
-     */
-    this.emit('title', title);
-  }
-
-  /**
    * ESC
    */
 
@@ -2115,29 +1135,6 @@ export class Terminal extends EventEmitter implements ITerminal, IInputHandlingT
   public matchColor(r1: number, g1: number, b1: number): number {
     return matchColor_(r1, g1, b1);
   }
-
-  private visualBell(): boolean {
-    return this.options.bellStyle === 'visual' ||
-        this.options.bellStyle === 'both';
-  }
-
-  private soundBell(): boolean {
-    return this.options.bellStyle === 'sound' ||
-        this.options.bellStyle === 'both';
-  }
-
-  private syncBellSound(): void {
-    if (this.soundBell() && this.bellAudioElement) {
-      this.bellAudioElement.setAttribute('src', this.options.bellSound);
-    } else if (this.soundBell()) {
-      this.bellAudioElement = document.createElement('audio');
-      this.bellAudioElement.setAttribute('preload', 'auto');
-      this.bellAudioElement.setAttribute('src', this.options.bellSound);
-      this.helperContainer.appendChild(this.bellAudioElement);
-    } else if (this.bellAudioElement) {
-      this.helperContainer.removeChild(this.bellAudioElement);
-    }
-  }
 }
 
 /**
@@ -2170,12 +1167,6 @@ function isThirdLevelShift(browser: IBrowser, ev: KeyboardEvent): boolean {
 
   // Don't invoke for arrows, pageDown, home, backspace, etc. (on non-keypress events)
   return thirdLevelKey && (!ev.keyCode || ev.keyCode > 47);
-}
-
-function wasMondifierKeyOnlyEvent(ev: KeyboardEvent): boolean {
-  return ev.keyCode === 16 || // Shift
-    ev.keyCode === 17 || // Ctrl
-    ev.keyCode === 18; // Alt
 }
 
 /**

@@ -107,14 +107,6 @@ export class InputHandler implements IInputHandler {
   }
 
   /**
-   * BEL
-   * Bell (Ctrl-G).
-   */
-  public bell(): void {
-    this._terminal.bell();
-  }
-
-  /**
    * LF
    * Line Feed or New Line (NL).  (LF  is Ctrl-J).
    */
@@ -885,9 +877,6 @@ export class InputHandler implements IInputHandler {
           // even if there is no button held down.
 
           // TODO: Why are params[0] compares nested within a switch for params[0]?
-
-          this._terminal.x10Mouse = params[0] === 9;
-          this._terminal.vt200Mouse = params[0] === 1000;
           this._terminal.normalMouse = params[0] > 1000;
           this._terminal.mouseEvents = true;
           this._terminal.element.classList.add('enable-mouse-events');
@@ -1068,8 +1057,6 @@ export class InputHandler implements IInputHandler {
         case 1000: // vt200 mouse
         case 1002: // button event mouse
         case 1003: // any event mouse
-          this._terminal.x10Mouse = false;
-          this._terminal.vt200Mouse = false;
           this._terminal.normalMouse = false;
           this._terminal.mouseEvents = false;
           this._terminal.element.classList.remove('enable-mouse-events');

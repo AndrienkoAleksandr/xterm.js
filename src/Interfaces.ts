@@ -6,7 +6,6 @@
 import { ILinkMatcherOptions } from './Interfaces';
 import { LinkMatcherHandler, LinkMatcherValidationCallback, Charset, LineData } from './Types';
 import { IColorSet, IRenderer } from './renderer/Interfaces';
-import { IMouseZoneManager } from './input/Interfaces';
 
 export interface IBrowser {
   isNode: boolean;
@@ -28,11 +27,7 @@ export interface IElementAccessor {
   element: HTMLElement;
 }
 
-export interface ILinkifierAccessor {
-  linkifier: ILinkifier;
-}
-
-export interface ITerminal extends ILinkifierAccessor, IBufferAccessor, IElementAccessor, IEventEmitter {
+export interface ITerminal extends IBufferAccessor, IElementAccessor, IEventEmitter {
   selectionManager: ISelectionManager;
   charMeasure: ICharMeasure;
   textarea: HTMLTextAreaElement;
@@ -88,8 +83,6 @@ export interface IInputHandlingTerminal extends IEventEmitter {
   curAttr: number;
   prefix: string;
   savedCols: number;
-  x10Mouse: boolean;
-  vt200Mouse: boolean;
   normalMouse: boolean;
   mouseEvents: boolean;
   sendFocus: boolean;
@@ -103,8 +96,6 @@ export interface IInputHandlingTerminal extends IEventEmitter {
   viewport: IViewport;
   selectionManager: ISelectionManager;
 
-  bell(): void;
-  focus(): void;
   convertEol: boolean;
   updateRange(y: number): void;
   scroll(isWrapped?: boolean): void;
@@ -128,8 +119,6 @@ export interface IInputHandlingTerminal extends IEventEmitter {
 }
 
 export interface ITerminalOptions {
-  bellSound?: string;
-  bellStyle?: string;
   cancelEvents?: boolean;
   cols?: number;
   convertEol?: boolean;
@@ -216,15 +205,6 @@ export interface ICharMeasure {
   measure(options: ITerminalOptions): void;
 }
 
-export interface ILinkifier extends IEventEmitter {
-  attachToDom(mouseZoneManager: IMouseZoneManager): void;
-  linkifyRows(start: number, end: number): void;
-  setHypertextLinkHandler(handler: LinkMatcherHandler): void;
-  setHypertextValidationCallback(callback: LinkMatcherValidationCallback): void;
-  registerLinkMatcher(regex: RegExp, handler: LinkMatcherHandler, options?: ILinkMatcherOptions): number;
-  deregisterLinkMatcher(matcherId: number): boolean;
-}
-
 export interface ICircularList<T> extends IEventEmitter {
   length: number;
   maxLength: number;
@@ -283,7 +263,6 @@ export interface ILinkMatcherOptions {
 export interface IInputHandler {
   addChar(char: string, code: number): void;
 
-  /** C0 BEL */ bell(): void;
   /** C0 LF */ lineFeed(): void;
   /** C0 CR */ carriageReturn(): void;
   /** C0 BS */ backspace(): void;

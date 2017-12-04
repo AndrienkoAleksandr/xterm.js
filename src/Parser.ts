@@ -9,7 +9,6 @@ import { IInputHandler } from './Interfaces';
 import { CHARSETS, DEFAULT_CHARSET } from './Charsets';
 
 const normalStateHandler: {[key: string]: (parser: Parser, handler: IInputHandler) => void} = {};
-normalStateHandler[C0.BEL] = (parser, handler) => handler.bell();
 normalStateHandler[C0.LF] = (parser, handler) => handler.lineFeed();
 normalStateHandler[C0.VT] = normalStateHandler[C0.LF];
 normalStateHandler[C0.FF] = normalStateHandler[C0.LF];

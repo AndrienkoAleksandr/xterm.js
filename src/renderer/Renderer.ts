@@ -4,14 +4,11 @@
  */
 
 import { ITerminal, ITheme } from '../Interfaces';
-import { CHAR_DATA_WIDTH_INDEX, CHAR_DATA_CHAR_INDEX } from '../Buffer';
 import { TextRenderLayer } from './TextRenderLayer';
 import { SelectionRenderLayer } from './SelectionRenderLayer';
 import { CursorRenderLayer } from './CursorRenderLayer';
 import { ColorManager } from './ColorManager';
-import { BaseRenderLayer } from './BaseRenderLayer';
 import { IRenderLayer, IColorSet, IRenderer, IRenderDimensions } from './Interfaces';
-import { LinkRenderLayer } from './LinkRenderLayer';
 import { EventEmitter } from '../EventEmitter';
 
 export class Renderer extends EventEmitter implements IRenderer {
@@ -34,7 +31,6 @@ export class Renderer extends EventEmitter implements IRenderer {
     this._renderLayers = [
       new TextRenderLayer(this._terminal.element, 0, this.colorManager.colors),
       new SelectionRenderLayer(this._terminal.element, 1, this.colorManager.colors),
-      new LinkRenderLayer(this._terminal.element, 2, this.colorManager.colors, this._terminal),
       new CursorRenderLayer(this._terminal.element, 3, this.colorManager.colors)
     ];
     this.dimensions = {
