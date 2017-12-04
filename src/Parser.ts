@@ -183,15 +183,16 @@ export class Parser {
    * @param data The data to parse.
    */
   public parse(data: string): ParserState {
+    console.log(`parse: ` + data);
     const l = data.length;
-    let j;
-    let cs;
+    // let j;
+    // let cs;
     let ch;
     let code;
     let low;
 
-    const cursorStartX = this._terminal.buffer.x;
-    const cursorStartY = this._terminal.buffer.y;
+    // const cursorStartX = this._terminal.buffer.x;
+    // const cursorStartY = this._terminal.buffer.y;
 
     if (this._terminal.debug) {
       this._terminal.log('data: ' + data);
@@ -203,6 +204,12 @@ export class Parser {
       data = this._terminal.surrogate_high + data;
       this._terminal.surrogate_high = '';
     }
+
+    // for (; this._position < l; this._position++) {
+    //   ch = data[this._position];
+    //   code = data.charCodeAt(this._position + 1);
+    //   this._inputHandler.addChar(ch, code);
+    // }
 
     for (; this._position < l; this._position++) {
       ch = data[this._position];
@@ -226,370 +233,370 @@ export class Parser {
       if (0xDC00 <= code && code <= 0xDFFF)
         continue;
 
-      switch (this._state) {
-        case ParserState.NORMAL:
+      // switch (this._state) {
+      //   case ParserState.NORMAL:
           if (ch in normalStateHandler) {
             normalStateHandler[ch](this, this._inputHandler);
           } else {
             this._inputHandler.addChar(ch, code);
           }
-          break;
-        case ParserState.ESCAPED:
-          if (ch in escapedStateHandler) {
-            escapedStateHandler[ch](this, this._terminal);
-            // Skip switch as it was just handled
-            break;
-          }
-          switch (ch) {
-
-            // ESC (,),*,+,-,. Designate G0-G2 Character Set.
-            case '(': // <-- this seems to get all the attention
-            case ')':
-            case '*':
-            case '+':
-            case '-':
-            case '.':
-              switch (ch) {
-                case '(':
-                  this._terminal.gcharset = 0;
-                  break;
-                case ')':
-                  this._terminal.gcharset = 1;
-                  break;
-                case '*':
-                  this._terminal.gcharset = 2;
-                  break;
-                case '+':
-                  this._terminal.gcharset = 3;
-                  break;
-                case '-':
-                  this._terminal.gcharset = 1;
-                  break;
-                case '.':
-                  this._terminal.gcharset = 2;
-                  break;
-              }
-              this._state = ParserState.CHARSET;
-              break;
-
-            // Designate G3 Character Set (VT300).
-            // A = ISO Latin-1 Supplemental.
-            // Not implemented.
-            case '/':
-              this._terminal.gcharset = 3;
-              this._state = ParserState.CHARSET;
-              this._position--;
-              break;
-
-            // ESC N
-            // Single Shift Select of G2 Character Set
-            // ( SS2 is 0x8e). This affects next character only.
-            case 'N':
-              break;
-            // ESC O
-            // Single Shift Select of G3 Character Set
-            // ( SS3 is 0x8f). This affects next character only.
-            case 'O':
-              break;
-            // ESC n
-            // Invoke the G2 Character Set as GL (LS2).
-            case 'n':
-              this._terminal.setgLevel(2);
-              break;
-            // ESC o
-            // Invoke the G3 Character Set as GL (LS3).
-            case 'o':
-              this._terminal.setgLevel(3);
-              break;
-            // ESC |
-            // Invoke the G3 Character Set as GR (LS3R).
-            case '|':
-              this._terminal.setgLevel(3);
-              break;
-            // ESC }
-            // Invoke the G2 Character Set as GR (LS2R).
-            case '}':
-              this._terminal.setgLevel(2);
-              break;
-            // ESC ~
-            // Invoke the G1 Character Set as GR (LS1R).
-            case '~':
-              this._terminal.setgLevel(1);
-              break;
-
-            // ESC 7 Save Cursor (DECSC).
-            case '7':
-              this._inputHandler.saveCursor();
-              this._state = ParserState.NORMAL;
-              break;
-
-            // ESC 8 Restore Cursor (DECRC).
-            case '8':
-              this._inputHandler.restoreCursor();
-              this._state = ParserState.NORMAL;
-              break;
-
-            // ESC # 3 DEC line height/width
-            case '#':
-              this._state = ParserState.NORMAL;
-              this._position++;
-              break;
-
-            // ESC H Tab Set (HTS is 0x88).
-            case 'H':
-              this._terminal.tabSet();
-              this._state = ParserState.NORMAL;
-              break;
-
-            // ESC = Application Keypad (DECKPAM).
-            case '=':
-              this._terminal.log('Serial port requested application keypad.');
-              this._terminal.applicationKeypad = true;
-              if (this._terminal.viewport) {
-                this._terminal.viewport.syncScrollArea();
-              }
-              this._state = ParserState.NORMAL;
-              break;
-
-            // ESC > Normal Keypad (DECKPNM).
-            case '>':
-              this._terminal.log('Switching back to normal keypad.');
-              this._terminal.applicationKeypad = false;
-              if (this._terminal.viewport) {
-                this._terminal.viewport.syncScrollArea();
-              }
-              this._state = ParserState.NORMAL;
-              break;
-
-            default:
-              this._state = ParserState.NORMAL;
-              this._terminal.error('Unknown ESC control: %s.', ch);
-              break;
-          }
-          break;
-
-        case ParserState.CHARSET:
-          if (ch in CHARSETS) {
-            cs = CHARSETS[ch];
-            if (ch === '/') { // ISOLatin is actually /A
-              this.skipNextChar();
-            }
-          } else {
-            cs = DEFAULT_CHARSET;
-          }
-          this._terminal.setgCharset(this._terminal.gcharset, cs);
-          this._terminal.gcharset = null;
-          this._state = ParserState.NORMAL;
-          break;
-
-        case ParserState.OSC:
-          // OSC Ps ; Pt ST
-          // OSC Ps ; Pt BEL
-          //   Set Text Parameters.
-          if (ch === C0.ESC || ch === C0.BEL) {
-            if (ch === C0.ESC) this._position++;
-
-            this._terminal.params.push(this._terminal.currentParam);
-
-            switch (this._terminal.params[0]) {
-              case 0:
-              case 1:
-              case 2:
-                if (this._terminal.params[1]) {
-                  this._terminal.title = this._terminal.params[1];
-                  this._terminal.handleTitle(this._terminal.title);
-                }
-                break;
-              case 3:
-                // set X property
-                break;
-              case 4:
-              case 5:
-                // change dynamic colors
-                break;
-              case 10:
-              case 11:
-              case 12:
-              case 13:
-              case 14:
-              case 15:
-              case 16:
-              case 17:
-              case 18:
-              case 19:
-                // change dynamic ui colors
-                break;
-              case 46:
-                // change log file
-                break;
-              case 50:
-                // dynamic font
-                break;
-              case 51:
-                // emacs shell
-                break;
-              case 52:
-                // manipulate selection data
-                break;
-              case 104:
-              case 105:
-              case 110:
-              case 111:
-              case 112:
-              case 113:
-              case 114:
-              case 115:
-              case 116:
-              case 117:
-              case 118:
-                // reset colors
-                break;
-            }
-
-            this._terminal.params = [];
-            this._terminal.currentParam = 0;
-            this._state = ParserState.NORMAL;
-          } else {
-            if (!this._terminal.params.length) {
-              if (ch >= '0' && ch <= '9') {
-                this._terminal.currentParam =
-                  this._terminal.currentParam * 10 + ch.charCodeAt(0) - 48;
-              } else if (ch === ';') {
-                this._terminal.params.push(this._terminal.currentParam);
-                this._terminal.currentParam = '';
-              }
-            } else {
-              this._terminal.currentParam += ch;
-            }
-          }
-          break;
-
-        case ParserState.CSI_PARAM:
-          if (ch in csiParamStateHandler) {
-            csiParamStateHandler[ch](this);
-            break;
-          }
-          this.finalizeParam();
-          // Fall through the CSI as this character should be the CSI code.
-          this._state = ParserState.CSI;
-
-        case ParserState.CSI:
-          if (ch in csiStateHandler) {
-            if (this._terminal.debug) {
-              this._terminal.log(`CSI ${this._terminal.prefix ? this._terminal.prefix : ''} ${this._terminal.params ? this._terminal.params.join(';') : ''} ${this._terminal.postfix ? this._terminal.postfix : ''} ${ch}`);
-            }
-            csiStateHandler[ch](this._inputHandler, this._terminal.params, this._terminal.prefix, this._terminal.postfix, this);
-          } else {
-            this._terminal.error('Unknown CSI code: %s.', ch);
-          }
-
-          this._state = ParserState.NORMAL;
-          this._terminal.prefix = '';
-          this._terminal.postfix = '';
-          break;
-
-        case ParserState.DCS:
-          if (ch === C0.ESC || ch === C0.BEL) {
-            if (ch === C0.ESC) this._position++;
-            let pt;
-            let valid: boolean;
-
-            switch (this._terminal.prefix) {
-              // User-Defined Keys (DECUDK).
-              case '':
-                break;
-
-              // Request Status String (DECRQSS).
-              // test: echo -e '\eP$q"p\e\\'
-              case '$q':
-                pt = this._terminal.currentParam;
-                valid = false;
-
-                switch (pt) {
-                  // DECSCA
-                  case '"q':
-                    pt = '0"q';
-                    break;
-
-                  // DECSCL
-                  case '"p':
-                    pt = '61"p';
-                    break;
-
-                  // DECSTBM
-                  case 'r':
-                    pt = ''
-                      + (this._terminal.buffer.scrollTop + 1)
-                      + ';'
-                      + (this._terminal.buffer.scrollBottom + 1)
-                      + 'r';
-                    break;
-
-                  // SGR
-                  case 'm':
-                    pt = '0m';
-                    break;
-
-                  default:
-                    this._terminal.error('Unknown DCS Pt: %s.', pt);
-                    pt = '';
-                    break;
-                }
-
-                this._terminal.send(C0.ESC + 'P' + +valid + '$r' + pt + C0.ESC + '\\');
-                break;
-
-              // Set Termcap/Terminfo Data (xterm, experimental).
-              case '+p':
-                break;
-
-              // Request Termcap/Terminfo String (xterm, experimental)
-              // Regular xterm does not even respond to this sequence.
-              // This can cause a small glitch in vim.
-              // test: echo -ne '\eP+q6b64\e\\'
-              case '+q':
-                pt = this._terminal.currentParam;
-                valid = false;
-
-                this._terminal.send(C0.ESC + 'P' + +valid + '+r' + pt + C0.ESC + '\\');
-                break;
-
-              default:
-                this._terminal.error('Unknown DCS prefix: %s.', this._terminal.prefix);
-                break;
-            }
-
-            this._terminal.currentParam = 0;
-            this._terminal.prefix = '';
-            this._state = ParserState.NORMAL;
-          } else if (!this._terminal.currentParam) {
-            if (!this._terminal.prefix && ch !== '$' && ch !== '+') {
-              this._terminal.currentParam = ch;
-            } else if (this._terminal.prefix.length === 2) {
-              this._terminal.currentParam = ch;
-            } else {
-              this._terminal.prefix += ch;
-            }
-          } else {
-            this._terminal.currentParam += ch;
-          }
-          break;
-
-        case ParserState.IGNORE:
-          // For PM and APC.
-          if (ch === C0.ESC || ch === C0.BEL) {
-            if (ch === C0.ESC) this._position++;
-            this._state = ParserState.NORMAL;
-          }
-          break;
-      }
+      //     break;
+      //   case ParserState.ESCAPED:
+      //     if (ch in escapedStateHandler) {
+      //       escapedStateHandler[ch](this, this._terminal);
+      //       // Skip switch as it was just handled
+      //       break;
+      //     }
+      //     switch (ch) {
+      //
+      //       // ESC (,),*,+,-,. Designate G0-G2 Character Set.
+      //       case '(': // <-- this seems to get all the attention
+      //       case ')':
+      //       case '*':
+      //       case '+':
+      //       case '-':
+      //       case '.':
+      //         switch (ch) {
+      //           case '(':
+      //             this._terminal.gcharset = 0;
+      //             break;
+      //           case ')':
+      //             this._terminal.gcharset = 1;
+      //             break;
+      //           case '*':
+      //             this._terminal.gcharset = 2;
+      //             break;
+      //           case '+':
+      //             this._terminal.gcharset = 3;
+      //             break;
+      //           case '-':
+      //             this._terminal.gcharset = 1;
+      //             break;
+      //           case '.':
+      //             this._terminal.gcharset = 2;
+      //             break;
+      //         }
+      //         this._state = ParserState.CHARSET;
+      //         break;
+      //
+      //       // Designate G3 Character Set (VT300).
+      //       // A = ISO Latin-1 Supplemental.
+      //       // Not implemented.
+      //       case '/':
+      //         this._terminal.gcharset = 3;
+      //         this._state = ParserState.CHARSET;
+      //         this._position--;
+      //         break;
+      //
+      //       // ESC N
+      //       // Single Shift Select of G2 Character Set
+      //       // ( SS2 is 0x8e). This affects next character only.
+      //       case 'N':
+      //         break;
+      //       // ESC O
+      //       // Single Shift Select of G3 Character Set
+      //       // ( SS3 is 0x8f). This affects next character only.
+      //       case 'O':
+      //         break;
+      //       // ESC n
+      //       // Invoke the G2 Character Set as GL (LS2).
+      //       case 'n':
+      //         this._terminal.setgLevel(2);
+      //         break;
+      //       // ESC o
+      //       // Invoke the G3 Character Set as GL (LS3).
+      //       case 'o':
+      //         this._terminal.setgLevel(3);
+      //         break;
+      //       // ESC |
+      //       // Invoke the G3 Character Set as GR (LS3R).
+      //       case '|':
+      //         this._terminal.setgLevel(3);
+      //         break;
+      //       // ESC }
+      //       // Invoke the G2 Character Set as GR (LS2R).
+      //       case '}':
+      //         this._terminal.setgLevel(2);
+      //         break;
+      //       // ESC ~
+      //       // Invoke the G1 Character Set as GR (LS1R).
+      //       case '~':
+      //         this._terminal.setgLevel(1);
+      //         break;
+      //
+      //       // ESC 7 Save Cursor (DECSC).
+      //       case '7':
+      //         this._inputHandler.saveCursor();
+      //         this._state = ParserState.NORMAL;
+      //         break;
+      //
+      //       // ESC 8 Restore Cursor (DECRC).
+      //       case '8':
+      //         this._inputHandler.restoreCursor();
+      //         this._state = ParserState.NORMAL;
+      //         break;
+      //
+      //       // ESC # 3 DEC line height/width
+      //       case '#':
+      //         this._state = ParserState.NORMAL;
+      //         this._position++;
+      //         break;
+      //
+      //       // ESC H Tab Set (HTS is 0x88).
+      //       case 'H':
+      //         this._terminal.tabSet();
+      //         this._state = ParserState.NORMAL;
+      //         break;
+      //
+      //       // ESC = Application Keypad (DECKPAM).
+      //       case '=':
+      //         this._terminal.log('Serial port requested application keypad.');
+      //         this._terminal.applicationKeypad = true;
+      //         if (this._terminal.viewport) {
+      //           this._terminal.viewport.syncScrollArea();
+      //         }
+      //         this._state = ParserState.NORMAL;
+      //         break;
+      //
+      //       // ESC > Normal Keypad (DECKPNM).
+      //       case '>':
+      //         this._terminal.log('Switching back to normal keypad.');
+      //         this._terminal.applicationKeypad = false;
+      //         if (this._terminal.viewport) {
+      //           this._terminal.viewport.syncScrollArea();
+      //         }
+      //         this._state = ParserState.NORMAL;
+      //         break;
+      //
+      //       default:
+      //         this._state = ParserState.NORMAL;
+      //         this._terminal.error('Unknown ESC control: %s.', ch);
+      //         break;
+      //     }
+      //     break;
+      //
+      //   case ParserState.CHARSET:
+      //     if (ch in CHARSETS) {
+      //       cs = CHARSETS[ch];
+      //       if (ch === '/') { // ISOLatin is actually /A
+      //         this.skipNextChar();
+      //       }
+      //     } else {
+      //       cs = DEFAULT_CHARSET;
+      //     }
+      //     this._terminal.setgCharset(this._terminal.gcharset, cs);
+      //     this._terminal.gcharset = null;
+      //     this._state = ParserState.NORMAL;
+      //     break;
+      //
+      //   case ParserState.OSC:
+      //     // OSC Ps ; Pt ST
+      //     // OSC Ps ; Pt BEL
+      //     //   Set Text Parameters.
+      //     if (ch === C0.ESC || ch === C0.BEL) {
+      //       if (ch === C0.ESC) this._position++;
+      //
+      //       this._terminal.params.push(this._terminal.currentParam);
+      //
+      //       switch (this._terminal.params[0]) {
+      //         case 0:
+      //         case 1:
+      //         case 2:
+      //           if (this._terminal.params[1]) {
+      //             this._terminal.title = this._terminal.params[1];
+      //             this._terminal.handleTitle(this._terminal.title);
+      //           }
+      //           break;
+      //         case 3:
+      //           // set X property
+      //           break;
+      //         case 4:
+      //         case 5:
+      //           // change dynamic colors
+      //           break;
+      //         case 10:
+      //         case 11:
+      //         case 12:
+      //         case 13:
+      //         case 14:
+      //         case 15:
+      //         case 16:
+      //         case 17:
+      //         case 18:
+      //         case 19:
+      //           // change dynamic ui colors
+      //           break;
+      //         case 46:
+      //           // change log file
+      //           break;
+      //         case 50:
+      //           // dynamic font
+      //           break;
+      //         case 51:
+      //           // emacs shell
+      //           break;
+      //         case 52:
+      //           // manipulate selection data
+      //           break;
+      //         case 104:
+      //         case 105:
+      //         case 110:
+      //         case 111:
+      //         case 112:
+      //         case 113:
+      //         case 114:
+      //         case 115:
+      //         case 116:
+      //         case 117:
+      //         case 118:
+      //           // reset colors
+      //           break;
+      //       }
+      //
+      //       this._terminal.params = [];
+      //       this._terminal.currentParam = 0;
+      //       this._state = ParserState.NORMAL;
+      //     } else {
+      //       if (!this._terminal.params.length) {
+      //         if (ch >= '0' && ch <= '9') {
+      //           this._terminal.currentParam =
+      //             this._terminal.currentParam * 10 + ch.charCodeAt(0) - 48;
+      //         } else if (ch === ';') {
+      //           this._terminal.params.push(this._terminal.currentParam);
+      //           this._terminal.currentParam = '';
+      //         }
+      //       } else {
+      //         this._terminal.currentParam += ch;
+      //       }
+      //     }
+      //     break;
+      //
+      //   case ParserState.CSI_PARAM:
+      //     if (ch in csiParamStateHandler) {
+      //       csiParamStateHandler[ch](this);
+      //       break;
+      //     }
+      //     this.finalizeParam();
+      //     // Fall through the CSI as this character should be the CSI code.
+      //     this._state = ParserState.CSI;
+      //
+      //   case ParserState.CSI:
+      //     if (ch in csiStateHandler) {
+      //       if (this._terminal.debug) {
+      //         this._terminal.log(`CSI ${this._terminal.prefix ? this._terminal.prefix : ''} ${this._terminal.params ? this._terminal.params.join(';') : ''} ${this._terminal.postfix ? this._terminal.postfix : ''} ${ch}`);
+      //       }
+      //       csiStateHandler[ch](this._inputHandler, this._terminal.params, this._terminal.prefix, this._terminal.postfix, this);
+      //     } else {
+      //       this._terminal.error('Unknown CSI code: %s.', ch);
+      //     }
+      //
+      //     this._state = ParserState.NORMAL;
+      //     this._terminal.prefix = '';
+      //     this._terminal.postfix = '';
+      //     break;
+      //
+      //   case ParserState.DCS:
+      //     if (ch === C0.ESC || ch === C0.BEL) {
+      //       if (ch === C0.ESC) this._position++;
+      //       let pt;
+      //       let valid: boolean;
+      //
+      //       switch (this._terminal.prefix) {
+      //         // User-Defined Keys (DECUDK).
+      //         case '':
+      //           break;
+      //
+      //         // Request Status String (DECRQSS).
+      //         // test: echo -e '\eP$q"p\e\\'
+      //         case '$q':
+      //           pt = this._terminal.currentParam;
+      //           valid = false;
+      //
+      //           switch (pt) {
+      //             // DECSCA
+      //             case '"q':
+      //               pt = '0"q';
+      //               break;
+      //
+      //             // DECSCL
+      //             case '"p':
+      //               pt = '61"p';
+      //               break;
+      //
+      //             // DECSTBM
+      //             case 'r':
+      //               pt = ''
+      //                 + (this._terminal.buffer.scrollTop + 1)
+      //                 + ';'
+      //                 + (this._terminal.buffer.scrollBottom + 1)
+      //                 + 'r';
+      //               break;
+      //
+      //             // SGR
+      //             case 'm':
+      //               pt = '0m';
+      //               break;
+      //
+      //             default:
+      //               this._terminal.error('Unknown DCS Pt: %s.', pt);
+      //               pt = '';
+      //               break;
+      //           }
+      //
+      //           this._terminal.send(C0.ESC + 'P' + +valid + '$r' + pt + C0.ESC + '\\');
+      //           break;
+      //
+      //         // Set Termcap/Terminfo Data (xterm, experimental).
+      //         case '+p':
+      //           break;
+      //
+      //         // Request Termcap/Terminfo String (xterm, experimental)
+      //         // Regular xterm does not even respond to this sequence.
+      //         // This can cause a small glitch in vim.
+      //         // test: echo -ne '\eP+q6b64\e\\'
+      //         case '+q':
+      //           pt = this._terminal.currentParam;
+      //           valid = false;
+      //
+      //           this._terminal.send(C0.ESC + 'P' + +valid + '+r' + pt + C0.ESC + '\\');
+      //           break;
+      //
+      //         default:
+      //           this._terminal.error('Unknown DCS prefix: %s.', this._terminal.prefix);
+      //           break;
+      //       }
+      //
+      //       this._terminal.currentParam = 0;
+      //       this._terminal.prefix = '';
+      //       this._state = ParserState.NORMAL;
+      //     } else if (!this._terminal.currentParam) {
+      //       if (!this._terminal.prefix && ch !== '$' && ch !== '+') {
+      //         this._terminal.currentParam = ch;
+      //       } else if (this._terminal.prefix.length === 2) {
+      //         this._terminal.currentParam = ch;
+      //       } else {
+      //         this._terminal.prefix += ch;
+      //       }
+      //     } else {
+      //       this._terminal.currentParam += ch;
+      //     }
+      //     break;
+      //
+      //   case ParserState.IGNORE:
+      //     // For PM and APC.
+      //     if (ch === C0.ESC || ch === C0.BEL) {
+      //       if (ch === C0.ESC) this._position++;
+      //       this._state = ParserState.NORMAL;
+      //     }
+      //     break;
+      // }
     }
 
-    // Fire the cursormove event if it's moved. This is done inside the parser
-    // as a render cannot happen in the middle of a parsing round.
-    if (this._terminal.buffer.x !== cursorStartX || this._terminal.buffer.y !== cursorStartY) {
-      this._terminal.emit('cursormove');
-    }
+    // // Fire the cursormove event if it's moved. This is done inside the parser
+    // // as a render cannot happen in the middle of a parsing round.
+    // if (this._terminal.buffer.x !== cursorStartX || this._terminal.buffer.y !== cursorStartY) {
+    //   this._terminal.emit('cursormove');
+    // }
 
     return this._state;
   }

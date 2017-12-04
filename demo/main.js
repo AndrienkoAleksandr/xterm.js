@@ -80,9 +80,9 @@ function createTerminal() {
   });
 
   term.open(terminalContainer);
-  //term.fit();
+  // term.fit();
   var i;
-  for (i = 0; i < 100; i++) {
+  for (i = 0; i < 2; i++) {
     term.writeln("line " +  i);
   }
 }
